@@ -359,7 +359,7 @@ A key detail is that some initializer bindings are not fully resolved inside `Ty
 - validated class / struct constructor candidates
 - uniquely resolved function or method calls that expose a usable return type
 
-So return-type-aware receiver inference already exists in a constrained downstream form today. Phase 7.3 extended this by threading `ReturnTypeLookup` into `TypeEnv` via `ForLoopExtractorContext`, enabling for-loop call-expression iterables (e.g., `for (const u of getUsers())`) to resolve element types in 7 languages (TS/JS, Java, Kotlin, C#, Go, Rust, Python, PHP). Phase 9 activated the general assignment propagation (`var x = f()` binding the return type of `f` into the scope env) via the `pendingCallResults` Tier 2b infrastructure across all 11 supported languages (Swift excluded). Tier 2b now runs before Tier 2a copy-propagation, enabling mixed chains like `const user = getUser(); const alias = user; alias.save()`.
+So return-type-aware receiver inference already exists in a constrained downstream form today. Phase 7.3 extended this by threading `ReturnTypeLookup` into `TypeEnv` via `ForLoopExtractorContext`, enabling for-loop call-expression iterables (e.g., `for (const u of getUsers())`) to resolve element types in 7 languages (TS/JS, Java, Kotlin, C#, Go, Rust, Python, PHP). Phase 9 activated simple call-result binding (`var x = f()`) across all 11 supported languages (Swift excluded). Phase 9C replaced the sequential Tier 2b/2a with a unified fixpoint loop that handles four binding kinds — `callResult`, `copy`, `fieldAccess`, and `methodCallResult` — iterating until no new bindings are produced. This enables arbitrary-depth mixed chains like `const user = getUser(); const addr = user.address; const city = addr.getCity(); city.save()`.
 
 ---
 
@@ -378,6 +378,8 @@ So return-type-aware receiver inference already exists in a constrained downstre
 | Comment-based types | JSDoc | JSDoc | No | No | No | No | No | No | PHPDoc | YARD | No | No | No |
 | Return type extraction | JSDoc | JSDoc | No | No | No | No | No | No | PHPDoc | YARD | No | No | No |
 | Call-result variable binding | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes¶ | No | Yes | No |
+| Field access binding | Yes | No† | Yes | Yes | Yes | Yes | Yes | No‖ | Yes | N/A | No | Yes | No |
+| Method-call-result binding | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes¶ | No | Yes | No |
 | Write access (ACCESSES write) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes§ | Yes | Yes | Yes | No |
 
 \* Python class-level annotated attributes (`address: Address`) now resolve `declaredType` correctly. The `self.x` instance attribute pattern is not yet supported.
@@ -386,7 +388,9 @@ So return-type-aware receiver inference already exists in a constrained downstre
 
 ‡ C has no `@definition.property` query pattern. Struct member fields are not captured. C++ captures class/struct member fields via `field_declaration`.
 
-¶ Ruby call-result binding is limited to bare function calls with explicit parentheses (no receiver). Ruby method calls like `User.get_user()` have a receiver and are skipped by design.
+¶ Ruby call-result and method-call-result binding work via `call`/`method_call` nodes. Ruby uses method calls for both field access and method calls — there is no separate field access node type.
+
+‖ Python class-level annotated attributes (`address: Address`) have `declaredType`, but `self.x` instance attributes do not. Field access binding only works for class-level annotated fields.
 
 § PHP write access covers instance property writes (`$obj->field = value`) and static property writes (`ClassName::$field = value`). Nullsafe writes (`$obj?->field = value`) are not tracked because this is invalid PHP syntax — null-safe member access on the left-hand side of assignment is a parse error.
 

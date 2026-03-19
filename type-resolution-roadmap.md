@@ -464,6 +464,6 @@ Phases 7 and 8 (including 8A and 8B) are **complete**. The type system now handl
 - ✅ type-preserving stdlib passthroughs (`unwrap`, `clone`, `expect`, etc.)
 - ✅ comment-based types (JSDoc, PHPDoc, YARD)
 
-**Phase 9 is complete**: return-type-aware inference is now a first-class input to `TypeEnv` via the activated Tier 2b `pendingCallResults` loop. All 11 supported languages (TS, JS, Java, Kotlin, C#, Go, Rust, Python, PHP, Ruby, C++) emit `{ kind: 'callResult' }` entries from `extractPendingAssignment` for simple function calls. Tier 2b runs before Tier 2a copy-propagation, enabling mixed call-result + copy chains. **Next steps**: Phase 9B (loop inference from assigned call results) and 9C (broader method-chain inference).
+**Phase 9 and 9C are complete**: return-type-aware inference is now a first-class input to `TypeEnv`. Phase 9 activated simple call-result binding. Phase 9C replaced the sequential Tier 2b/2a with a unified fixpoint loop handling four binding kinds (`callResult`, `copy`, `fieldAccess`, `methodCallResult`) that iterates until no new bindings are produced. This enables arbitrary-depth mixed chains like `getUser() → .address → .getCity() → city.save()` across all 11 languages. **Next steps**: Phase 9B (loop inference from assigned call results).
 
 That path preserves the current strengths of the system while moving GitNexus the final step toward a robust, production-grade static-analysis foundation.
