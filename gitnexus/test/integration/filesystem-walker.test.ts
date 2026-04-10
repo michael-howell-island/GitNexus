@@ -291,6 +291,55 @@ describe('filesystem-walker', () => {
     });
   });
 
+  describe('git ls-files fast path', () => {
+    let gitDir: string;
+
+    beforeAll(async () => {
+      gitDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gn-git-walker-'));
+      const { execFileSync } = await import('child_process');
+      execFileSync('git', ['init'], { cwd: gitDir });
+      execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: gitDir });
+      execFileSync('git', ['config', 'user.name', 'Test'], { cwd: gitDir });
+
+      await fs.mkdir(path.join(gitDir, 'src'), { recursive: true });
+      await fs.writeFile(path.join(gitDir, 'src', 'index.ts'), 'export const x = 1;');
+      await fs.writeFile(path.join(gitDir, 'src', 'utils.ts'), 'export const y = 2;');
+      await fs.writeFile(path.join(gitDir, '.gitignore'), 'ignored/\n');
+      await fs.mkdir(path.join(gitDir, 'ignored'), { recursive: true });
+      await fs.writeFile(path.join(gitDir, 'ignored', 'skip.ts'), 'nope');
+
+      execFileSync('git', ['add', '.'], { cwd: gitDir });
+      execFileSync('git', ['commit', '-m', 'init'], { cwd: gitDir });
+
+      // Untracked file (not gitignored — should be found)
+      await fs.writeFile(path.join(gitDir, 'src', 'new.ts'), 'export const z = 3;');
+    });
+
+    afterAll(async () => {
+      await fs.rm(gitDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    it('finds tracked and untracked-but-not-ignored files', async () => {
+      const files = await walkRepositoryPaths(gitDir);
+      const paths = files.map((f) => f.path);
+      expect(paths).toContain('src/index.ts');
+      expect(paths).toContain('src/utils.ts');
+      expect(paths).toContain('src/new.ts');
+    });
+
+    it('excludes gitignored files', async () => {
+      const files = await walkRepositoryPaths(gitDir);
+      const paths = files.map((f) => f.path);
+      expect(paths.every((p) => !p.includes('ignored/'))).toBe(true);
+    });
+
+    it('excludes files matching DEFAULT_IGNORE_LIST via post-filter', async () => {
+      const files = await walkRepositoryPaths(gitDir);
+      const paths = files.map((f) => f.path);
+      expect(paths).not.toContain('.gitignore');
+    });
+  });
+
   describe('readFileContents', () => {
     it('reads file contents by relative paths', async () => {
       const contents = await readFileContents(tmpDir, ['src/index.ts', 'src/utils.ts']);

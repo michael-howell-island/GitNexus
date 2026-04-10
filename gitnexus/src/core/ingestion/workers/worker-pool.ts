@@ -2,6 +2,14 @@ import { Worker } from 'node:worker_threads';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { appendAll } from '../../../lib/array-utils.js';
+
+export interface DispatchResult<TInput, TResult> {
+  /** Results from workers that completed successfully */
+  results: TResult[];
+  /** Items from workers that failed (timeout, crash, etc.) */
+  failedItems: TInput[];
+}
 
 export interface WorkerPool {
   /**
@@ -12,7 +20,7 @@ export interface WorkerPool {
   dispatch<TInput, TResult>(
     items: TInput[],
     onProgress?: (filesProcessed: number) => void,
-  ): Promise<TResult[]>;
+  ): Promise<DispatchResult<TInput, TResult>>;
 
   /** Terminate all workers. Must be called when done. */
   terminate(): Promise<void>;
@@ -34,9 +42,15 @@ type WorkerOutgoingMessage =
  */
 const SUB_BATCH_SIZE = 1500;
 
-/** Per sub-batch timeout. If a single sub-batch takes longer than this,
- *  likely a pathological file (e.g. minified 50MB JS). Fail fast. */
-const SUB_BATCH_TIMEOUT_MS = 30_000;
+/** Minimum sub-batch timeout. Small batches always get at least this. */
+export const BASE_TIMEOUT_MS = 30_000;
+
+/** Per-file timeout budget. ~80ms gives 4x headroom over average parse time. */
+export const PER_FILE_TIMEOUT_MS = 80;
+
+/** Compute timeout for a sub-batch based on file count. */
+export const computeSubBatchTimeout = (fileCount: number): number =>
+  Math.max(BASE_TIMEOUT_MS, fileCount * PER_FILE_TIMEOUT_MS);
 
 /**
  * Create a pool of worker threads.
@@ -56,11 +70,11 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
     workers.push(new Worker(workerUrl));
   }
 
-  const dispatch = <TInput, TResult>(
+  const dispatch = async <TInput, TResult>(
     items: TInput[],
     onProgress?: (filesProcessed: number) => void,
-  ): Promise<TResult[]> => {
-    if (items.length === 0) return Promise.resolve([]);
+  ): Promise<DispatchResult<TInput, TResult>> => {
+    if (items.length === 0) return { results: [] as TResult[], failedItems: [] as TInput[] };
 
     const chunkSize = Math.ceil(items.length / size);
     const chunks: TInput[][] = [];
@@ -85,17 +99,18 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
 
         const resetSubBatchTimer = () => {
           if (subBatchTimer) clearTimeout(subBatchTimer);
+          const timeoutMs = computeSubBatchTimeout(chunk.length);
           subBatchTimer = setTimeout(() => {
             if (!settled) {
               settled = true;
               cleanup();
               reject(
                 new Error(
-                  `Worker ${i} sub-batch timed out after ${SUB_BATCH_TIMEOUT_MS / 1000}s (chunk: ${chunk.length} items).`,
+                  `Worker ${i} sub-batch timed out after ${timeoutMs / 1000}s (chunk: ${chunk.length} items).`,
                 ),
               );
             }
-          }, SUB_BATCH_TIMEOUT_MS);
+          }, timeoutMs);
         };
 
         let subBatchIdx = 0;
@@ -160,7 +175,25 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
       });
     });
 
-    return Promise.all(promises);
+    const settled = await Promise.allSettled(promises);
+    const results: TResult[] = [];
+    const failedItems: TInput[] = [];
+
+    for (let idx = 0; idx < settled.length; idx++) {
+      const outcome = settled[idx];
+      if (outcome.status === 'fulfilled') {
+        results.push(outcome.value);
+      } else {
+        if (idx < chunks.length) {
+          appendAll(failedItems, chunks[idx]);
+        }
+        console.warn(
+          `Worker ${idx} failed: ${outcome.reason instanceof Error ? outcome.reason.message : outcome.reason}`,
+        );
+      }
+    }
+
+    return { results, failedItems };
   };
 
   const terminate = async (): Promise<void> => {

@@ -1,8 +1,10 @@
 import { isVerboseIngestionEnabled } from './utils/verbose.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { glob } from 'glob';
-import { createIgnoreFilter } from '../../config/ignore-service.js';
+import { createIgnoreFilter, shouldIgnorePath } from '../../config/ignore-service.js';
 
 export interface FileEntry {
   path: string;
@@ -20,10 +22,29 @@ export interface FilePath {
   path: string;
 }
 
-const READ_CONCURRENCY = 32;
+const READ_CONCURRENCY = 128;
 
 /** Skip files larger than 512KB — they're usually generated/vendored and crash tree-sitter */
 const MAX_FILE_SIZE = 512 * 1024;
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * List repository files via `git ls-files`.
+ * Returns null if git is unavailable or the directory isn't a git repo.
+ */
+const listGitFiles = async (repoPath: string): Promise<string[] | null> => {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+      { cwd: repoPath, maxBuffer: 100 * 1024 * 1024 },
+    );
+    return stdout.split('\0').filter(Boolean);
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Phase 1: Scan repository — stat files to get paths + sizes, no content loaded.
@@ -33,14 +54,23 @@ export const walkRepositoryPaths = async (
   repoPath: string,
   onProgress?: (current: number, total: number, filePath: string) => void,
 ): Promise<ScannedFile[]> => {
-  const ignoreFilter = await createIgnoreFilter(repoPath);
+  // Fast path: git ls-files (~50ms vs 10-60s for glob on large repos)
+  let rawPaths = await listGitFiles(repoPath);
 
-  const filtered = await glob('**/*', {
-    cwd: repoPath,
-    nodir: true,
-    dot: false,
-    ignore: ignoreFilter,
-  });
+  if (!rawPaths) {
+    // Fallback: glob (non-git repos or --skip-git mode)
+    const ignoreFilter = await createIgnoreFilter(repoPath);
+    rawPaths = await glob('**/*', {
+      cwd: repoPath,
+      nodir: true,
+      dot: false,
+      ignore: ignoreFilter,
+    });
+  }
+
+  // Post-filter: git doesn't know about DEFAULT_IGNORE_LIST / IGNORED_EXTENSIONS / IGNORED_FILES
+  const filtered = rawPaths.filter((p) => !shouldIgnorePath(p));
+
   const entries: ScannedFile[] = [];
   let processed = 0;
   let skippedLarge = 0;

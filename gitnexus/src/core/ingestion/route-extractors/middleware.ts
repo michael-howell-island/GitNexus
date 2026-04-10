@@ -3,6 +3,8 @@
  * Detects wrapper patterns like: export const POST = withA(withB(withC(handler)))
  */
 
+import { appendAll } from '../../../lib/array-utils.js';
+
 /** Keywords that terminate middleware chain walking (not wrapper function names) */
 /** Names that are composition wrappers, not middleware functions themselves. */
 const COMPOSER_NAMES = new Set(['middleware', 'default', 'chain', 'compose']);
@@ -63,7 +65,7 @@ export function extractMiddlewareChain(
     const method = mwMatch[1] ?? 'default';
     const firstWrapper = mwMatch[2];
     const chain: string[] = [firstWrapper];
-    chain.push(...walkNestedWrappers(content, mwMatch.index + mwMatch[0].length));
+    appendAll(chain, walkNestedWrappers(content, mwMatch.index + mwMatch[0].length));
     if (chain.length >= 2 || (chain.length === 1 && /^with[A-Z]/.test(chain[0]))) {
       return { chain, method };
     }
@@ -132,7 +134,7 @@ export function extractNextjsMiddlewareConfig(content: string): NextjsMiddleware
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    wrappedFunctions.push(...fns);
+    appendAll(wrappedFunctions, fns);
   }
   // Pattern: export default withA(withB(handler))
   const wrapperRe = /export\s+default\s+(\w+)\s*\(/;

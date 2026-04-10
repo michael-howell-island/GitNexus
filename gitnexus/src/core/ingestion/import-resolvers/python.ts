@@ -4,6 +4,7 @@
  */
 
 import { tryResolveWithExtensions } from './utils.js';
+import { appendAll } from '../../../lib/array-utils.js';
 import { SupportedLanguages } from 'gitnexus-shared';
 import type { ImportResult, ResolveCtx } from './types.js';
 import { resolveStandard } from './standard.js';
@@ -41,7 +42,7 @@ export function resolvePythonImportInternal(
     for (let i = 1; i < dotCount; i++) dirParts.pop();
 
     if (modulePart) {
-      dirParts.push(...modulePart.replace(/\./g, '/').split('/'));
+      appendAll(dirParts, modulePart.replace(/\./g, '/').split('/'));
     }
 
     return tryResolveWithExtensions(dirParts.join('/'), allFiles);

@@ -1,4 +1,5 @@
 import type { SyntaxNode } from '../utils/ast-helpers.js';
+import { appendAll } from '../../../lib/array-utils.js';
 import type {
   LanguageTypeConfig,
   ParameterExtractor,
@@ -280,7 +281,7 @@ const collectPatternIdentifiers = (pattern: SyntaxNode): SyntaxNode[] => {
     if (child?.type === 'identifier') {
       vars.push(child);
     } else if (child?.type === 'tuple_pattern') {
-      vars.push(...collectPatternIdentifiers(child));
+      appendAll(vars, collectPatternIdentifiers(child));
     }
   }
   return vars;

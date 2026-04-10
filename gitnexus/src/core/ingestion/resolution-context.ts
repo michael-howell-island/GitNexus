@@ -25,6 +25,7 @@ import { createSymbolTable } from './symbol-table.js';
 import type { NamedImportMap } from './import-processor.js';
 import { isFileInPackageDir } from './import-processor.js';
 import { walkBindingChain } from './named-binding-processor.js';
+import { appendAll } from '../../lib/array-utils.js';
 
 /** Resolution tier for tracking, logging, and test assertions. */
 export type ResolutionTier = 'same-file' | 'import-scoped' | 'global';
@@ -135,7 +136,7 @@ export const createResolutionContext = (): ResolutionContext => {
     if (importedFiles) {
       const importedDefs: SymbolDefinition[] = [];
       for (const file of importedFiles) {
-        importedDefs.push(...symbols.lookupExactAll(file, name));
+        appendAll(importedDefs, symbols.lookupExactAll(file, name));
       }
       if (importedDefs.length > 0) {
         tierImportScoped++;
@@ -181,7 +182,7 @@ export const createResolutionContext = (): ResolutionContext => {
         const filesInDir = packageDirIndex.get(dirSuffix);
         if (filesInDir) {
           for (const file of filesInDir) {
-            packageDefs.push(...symbols.lookupExactAll(file, name));
+            appendAll(packageDefs, symbols.lookupExactAll(file, name));
           }
         }
       }

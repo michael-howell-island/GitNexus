@@ -2,6 +2,7 @@
 // Verified against tree-sitter-dart 1.0.0 (80e23c07)
 
 import { SupportedLanguages } from 'gitnexus-shared';
+import { appendAll } from '../../../../lib/array-utils.js';
 import type {
   MethodExtractionConfig,
   ParameterInfo,
@@ -197,7 +198,7 @@ function extractParamsFromList(listNode: SyntaxNode, isOptionalBlock: boolean): 
     } else if (child.type === 'optional_formal_parameters') {
       // Determine if these are named ({}) or positional ([]) optional params
       // by checking the surrounding delimiters
-      params.push(...extractParamsFromList(child, true));
+      appendAll(params, extractParamsFromList(child, true));
     }
   }
 

@@ -74,7 +74,7 @@ const processParsingWithWorkers = async (
   astCache: ASTCache,
   workerPool: WorkerPool,
   onFileProgress?: FileProgressCallback,
-): Promise<WorkerExtractedData> => {
+): Promise<{ extractedData: WorkerExtractedData; failedItems: ParseWorkerInput[] }> => {
   // Filter to parseable files only
   const parseableFiles: ParseWorkerInput[] = [];
   for (const file of files) {
@@ -84,28 +84,31 @@ const processParsingWithWorkers = async (
 
   if (parseableFiles.length === 0)
     return {
-      imports: [],
-      calls: [],
-      assignments: [],
-      heritage: [],
-      routes: [],
-      fetchCalls: [],
-      decoratorRoutes: [],
-      toolDefs: [],
-      ormQueries: [],
-      constructorBindings: [],
-      fileScopeBindings: [],
+      extractedData: {
+        imports: [],
+        calls: [],
+        assignments: [],
+        heritage: [],
+        routes: [],
+        fetchCalls: [],
+        decoratorRoutes: [],
+        toolDefs: [],
+        ormQueries: [],
+        constructorBindings: [],
+        fileScopeBindings: [],
+      },
+      failedItems: [],
     };
 
   const total = files.length;
 
   // Dispatch to worker pool — pool handles splitting into chunks and sub-batching
-  const chunkResults = await workerPool.dispatch<ParseWorkerInput, ParseWorkerResult>(
-    parseableFiles,
-    (filesProcessed) => {
-      onFileProgress?.(Math.min(filesProcessed, total), total, 'Parsing...');
-    },
-  );
+  const { results: chunkResults, failedItems } = await workerPool.dispatch<
+    ParseWorkerInput,
+    ParseWorkerResult
+  >(parseableFiles, (filesProcessed) => {
+    onFileProgress?.(Math.min(filesProcessed, total), total, 'Parsing...');
+  });
 
   // Merge results from all workers into graph and symbol table
   const allImports: ExtractedImport[] = [];
@@ -175,17 +178,20 @@ const processParsingWithWorkers = async (
   // Final progress
   onFileProgress?.(total, total, 'done');
   return {
-    imports: allImports,
-    calls: allCalls,
-    assignments: allAssignments,
-    heritage: allHeritage,
-    routes: allRoutes,
-    fetchCalls: allFetchCalls,
-    decoratorRoutes: allDecoratorRoutes,
-    toolDefs: allToolDefs,
-    ormQueries: allORMQueries,
-    constructorBindings: allConstructorBindings,
-    fileScopeBindings: fileScopeBindingsByFile,
+    extractedData: {
+      imports: allImports,
+      calls: allCalls,
+      assignments: allAssignments,
+      heritage: allHeritage,
+      routes: allRoutes,
+      fetchCalls: allFetchCalls,
+      decoratorRoutes: allDecoratorRoutes,
+      toolDefs: allToolDefs,
+      ormQueries: allORMQueries,
+      constructorBindings: allConstructorBindings,
+      fileScopeBindings: fileScopeBindingsByFile,
+    },
+    failedItems,
   };
 };
 
@@ -657,7 +663,7 @@ export const processParsing = async (
 ): Promise<WorkerExtractedData | null> => {
   if (workerPool) {
     try {
-      return await processParsingWithWorkers(
+      const { extractedData, failedItems } = await processParsingWithWorkers(
         graph,
         files,
         symbolTable,
@@ -665,9 +671,20 @@ export const processParsing = async (
         workerPool,
         onFileProgress,
       );
+
+      // If some workers failed, retry only those files sequentially
+      if (failedItems.length > 0) {
+        console.warn(
+          `  Retrying ${failedItems.length} files sequentially (from failed worker chunks)`,
+        );
+        const retryFiles = files.filter((f) => failedItems.some((ff) => ff.path === f.path));
+        await processParsingSequential(graph, retryFiles, symbolTable, astCache, onFileProgress);
+      }
+
+      return extractedData;
     } catch (err) {
       console.warn(
-        'Worker pool parsing failed, falling back to sequential:',
+        'Worker pool parsing failed completely, falling back to sequential:',
         err instanceof Error ? err.message : err,
       );
     }
