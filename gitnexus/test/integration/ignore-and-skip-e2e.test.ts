@@ -155,3 +155,50 @@ describe('ignore + language-skip E2E', () => {
     });
   });
 });
+
+describe('expanded ignore list', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gn-expand-ignore-'));
+    await fs.mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, 'src', 'app.ts'), 'export const x = 1;');
+
+    const ignoredDirs = [
+      '.worktrees',
+      '.claude',
+      '.nx',
+      '.yarn',
+      '.cursor',
+      '.run',
+      '.pre-commit-hooks',
+      'storybook-static',
+      '__generated__',
+      '.pnpm',
+    ];
+    for (const dir of ignoredDirs) {
+      await fs.mkdir(path.join(tmpDir, dir), { recursive: true });
+      await fs.writeFile(path.join(tmpDir, dir, 'file.ts'), 'nope');
+    }
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it('excludes all newly added ignore directories', async () => {
+    const files = await walkRepositoryPaths(tmpDir);
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('src/app.ts');
+    expect(paths.every((p) => !p.includes('.worktrees/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.claude/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.nx/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.yarn/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.cursor/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.run/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.pre-commit-hooks/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('storybook-static/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('__generated__/'))).toBe(true);
+    expect(paths.every((p) => !p.includes('.pnpm/'))).toBe(true);
+  });
+});

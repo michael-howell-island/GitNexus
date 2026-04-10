@@ -7,7 +7,13 @@
  * but workers need compiled .js files.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { createWorkerPool, WorkerPool } from '../../src/core/ingestion/workers/worker-pool.js';
+import {
+  createWorkerPool,
+  WorkerPool,
+  BASE_TIMEOUT_MS,
+  PER_FILE_TIMEOUT_MS,
+  computeSubBatchTimeout,
+} from '../../src/core/ingestion/workers/worker-pool.js';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -190,5 +196,23 @@ describe('worker pool integration', () => {
     const zeroPool = createWorkerPool(workerUrl, 0);
     expect(zeroPool.size).toBe(0);
     return zeroPool.terminate();
+  });
+});
+
+describe('sub-batch timeout scaling', () => {
+  it('uses base timeout for small batches', () => {
+    expect(computeSubBatchTimeout(10)).toBe(BASE_TIMEOUT_MS);
+  });
+
+  it('scales linearly for large batches', () => {
+    const timeout = computeSubBatchTimeout(1000);
+    expect(timeout).toBe(1000 * PER_FILE_TIMEOUT_MS);
+    expect(timeout).toBeGreaterThan(BASE_TIMEOUT_MS);
+  });
+
+  it('gives 731 files ~58s', () => {
+    const timeout = computeSubBatchTimeout(731);
+    expect(timeout).toBeGreaterThan(50_000);
+    expect(timeout).toBeLessThan(70_000);
   });
 });

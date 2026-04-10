@@ -34,9 +34,15 @@ type WorkerOutgoingMessage =
  */
 const SUB_BATCH_SIZE = 1500;
 
-/** Per sub-batch timeout. If a single sub-batch takes longer than this,
- *  likely a pathological file (e.g. minified 50MB JS). Fail fast. */
-const SUB_BATCH_TIMEOUT_MS = 30_000;
+/** Minimum sub-batch timeout. Small batches always get at least this. */
+export const BASE_TIMEOUT_MS = 30_000;
+
+/** Per-file timeout budget. ~80ms gives 4x headroom over average parse time. */
+export const PER_FILE_TIMEOUT_MS = 80;
+
+/** Compute timeout for a sub-batch based on file count. */
+export const computeSubBatchTimeout = (fileCount: number): number =>
+  Math.max(BASE_TIMEOUT_MS, fileCount * PER_FILE_TIMEOUT_MS);
 
 /**
  * Create a pool of worker threads.
@@ -85,17 +91,18 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
 
         const resetSubBatchTimer = () => {
           if (subBatchTimer) clearTimeout(subBatchTimer);
+          const timeoutMs = computeSubBatchTimeout(chunk.length);
           subBatchTimer = setTimeout(() => {
             if (!settled) {
               settled = true;
               cleanup();
               reject(
                 new Error(
-                  `Worker ${i} sub-batch timed out after ${SUB_BATCH_TIMEOUT_MS / 1000}s (chunk: ${chunk.length} items).`,
+                  `Worker ${i} sub-batch timed out after ${timeoutMs / 1000}s (chunk: ${chunk.length} items).`,
                 ),
               );
             }
-          }, SUB_BATCH_TIMEOUT_MS);
+          }, timeoutMs);
         };
 
         let subBatchIdx = 0;

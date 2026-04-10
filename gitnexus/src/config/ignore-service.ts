@@ -99,6 +99,28 @@ const DEFAULT_IGNORE_LIST = new Set([
   'fixtures', // Test fixtures
   'snapshots', // Jest snapshots
   '__snapshots__',
+
+  // Git Worktrees
+  '.worktrees',
+
+  // AI / Editor tools
+  '.claude',
+  '.cursor',
+  '.run', // JetBrains run configs
+
+  // Package managers
+  '.yarn', // Yarn cache + releases
+  '.pnpm', // pnpm store links
+
+  // Monorepo tools
+  '.nx', // Nx cache
+
+  // Git hooks
+  '.pre-commit-hooks',
+
+  // Build output (not covered above)
+  'storybook-static',
+  '__generated__',
 ]);
 
 const IGNORED_EXTENSIONS = new Set([
