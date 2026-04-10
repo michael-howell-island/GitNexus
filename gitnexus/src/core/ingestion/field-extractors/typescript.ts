@@ -3,6 +3,7 @@
 import type { SyntaxNode } from '../utils/ast-helpers.js';
 import { SupportedLanguages } from 'gitnexus-shared';
 import { BaseFieldExtractor } from '../field-extractor.js';
+import { appendAll } from '../../../lib/array-utils.js';
 import type {
   FieldExtractorContext,
   ExtractedFields,
@@ -290,21 +291,21 @@ export class TypeScriptFieldExtractor extends BaseFieldExtractor {
       const bodyNode = node.childForFieldName('body');
       if (bodyNode) {
         const extractedFields = this.extractFieldsFromBody(bodyNode, context);
-        fields.push(...extractedFields);
+        appendAll(fields, extractedFields);
       }
     } else if (node.type === 'interface_declaration') {
       // Find the interface body
       const bodyNode = node.childForFieldName('body');
       if (bodyNode) {
         const extractedFields = this.extractFieldsFromBody(bodyNode, context);
-        fields.push(...extractedFields);
+        appendAll(fields, extractedFields);
       }
     } else if (node.type === 'type_alias_declaration') {
       // Handle type aliases with object types
       const valueNode = node.childForFieldName('value');
       if (valueNode && valueNode.type === 'object_type') {
         const extractedFields = this.extractFieldsFromObjectType(valueNode, context);
-        fields.push(...extractedFields);
+        appendAll(fields, extractedFields);
       }
     }
 

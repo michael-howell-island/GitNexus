@@ -1,4 +1,5 @@
 import type { SyntaxNode } from '../utils/ast-helpers.js';
+import { appendAll } from '../../../lib/array-utils.js';
 import type { NodeLabel } from 'gitnexus-shared';
 import type {
   ClassExtractionConfig,
@@ -114,7 +115,7 @@ export function createClassExtractor(config: ClassExtractionConfig): ClassExtrac
     const fileScopeSegments: string[] = [];
     for (const child of root.namedChildren ?? []) {
       if (fileScopeSet.has(child.type)) {
-        fileScopeSegments.push(...readScopeSegments(child));
+        appendAll(fileScopeSegments, readScopeSegments(child));
       }
     }
 

@@ -761,7 +761,7 @@ const processBatch = (
         }
       }
     } else {
-      regularFiles.push(...langFiles);
+      appendAll(regularFiles, langFiles);
     }
 
     // Process regular files for this language
@@ -1132,7 +1132,7 @@ function extractLaravelRoutes(tree: Parser.Tree, filePath: string): ExtractedRou
     let prefix: string | null = null;
     let controller: string | null = null;
     for (const ctx of stack) {
-      middleware.push(...ctx.middleware);
+      appendAll(middleware, ctx.middleware);
       if (ctx.prefix) prefix = prefix ? `${prefix}/${ctx.prefix}`.replace(/\/+/g, '/') : ctx.prefix;
       if (ctx.controller) controller = ctx.controller;
     }
@@ -1150,7 +1150,7 @@ function extractLaravelRoutes(tree: Parser.Tree, filePath: string): ExtractedRou
 
     for (const attr of chainAttrs) {
       if (attr.method === 'middleware')
-        effective.middleware.push(...extractMiddlewareArg(attr.argsNode));
+        appendAll(effective.middleware, extractMiddlewareArg(attr.argsNode));
       if (attr.method === 'prefix') {
         const p = extractFirstStringArg(attr.argsNode);
         if (p) effective.prefix = effective.prefix ? `${effective.prefix}/${p}` : p;
@@ -1235,7 +1235,7 @@ function extractLaravelRoutes(tree: Parser.Tree, filePath: string): ExtractedRou
         const groupCtx: RouteGroupContext = { middleware: [], prefix: null, controller: null };
         for (const attr of chain.attributes) {
           if (attr.method === 'middleware')
-            groupCtx.middleware.push(...extractMiddlewareArg(attr.argsNode));
+            appendAll(groupCtx.middleware, extractMiddlewareArg(attr.argsNode));
           if (attr.method === 'prefix') groupCtx.prefix = extractFirstStringArg(attr.argsNode);
           if (attr.method === 'controller') groupCtx.controller = extractClassArg(attr.argsNode);
         }
@@ -2144,7 +2144,7 @@ const processFileGroup = (
     // Extract framework routes via provider detection (e.g., Laravel routes.php)
     if (provider.isRouteFile?.(file.path)) {
       const extractedRoutes = extractLaravelRoutes(tree, file.path);
-      result.routes.push(...extractedRoutes);
+      appendAll(result.routes, extractedRoutes);
     }
 
     // Extract ORM queries (Prisma, Supabase)

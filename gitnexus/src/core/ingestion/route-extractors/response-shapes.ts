@@ -4,6 +4,8 @@
  * extracts top-level keys, and classifies by HTTP status code.
  */
 
+import { appendAll } from '../../../lib/array-utils.js';
+
 /** Return the status code (group 1) from the last match, or undefined. */
 function lastMatchGroup(text: string, pattern: RegExp): number | undefined {
   const matches = [...text.matchAll(pattern)];
@@ -151,9 +153,9 @@ export function extractResponseShapes(content: string): {
     if (callKeys.length === 0) continue;
     const status = detectStatusCode(content, matchPos, closingBracePos);
     if (status !== undefined && status >= 400) {
-      errKeys.push(...callKeys);
+      appendAll(errKeys, callKeys);
     } else {
-      successKeys.push(...callKeys);
+      appendAll(successKeys, callKeys);
     }
   }
   return buildShapeResult(successKeys, errKeys);
@@ -294,9 +296,9 @@ export function extractPHPResponseShapes(content: string): {
     if (callKeys.length === 0) continue;
     const status = detectPHPStatusCode(content, matchPos);
     if (status !== undefined && status >= 400) {
-      errKeys.push(...callKeys);
+      appendAll(errKeys, callKeys);
     } else {
-      successKeys.push(...callKeys);
+      appendAll(successKeys, callKeys);
     }
   }
   return buildShapeResult(successKeys, errKeys);
