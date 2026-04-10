@@ -1,4 +1,5 @@
 import { parentPort } from 'node:worker_threads';
+import { appendAll } from '../../../lib/array-utils.js';
 import Parser from 'tree-sitter';
 import JavaScript from 'tree-sitter-javascript';
 import TypeScript from 'tree-sitter-typescript';
@@ -2188,13 +2189,6 @@ let accumulated: ParseWorkerResult = {
   fileCount: 0,
 };
 let cumulativeProcessed = 0;
-
-// Use a loop instead of push(...spread) to avoid hitting V8's argument limit
-// when merging large result sets (push(...arr) calls apply() under the hood
-// and blows the stack when arr has >~65k elements).
-const appendAll = <T>(target: T[], src: T[]) => {
-  for (let i = 0; i < src.length; i++) target.push(src[i]);
-};
 
 const mergeResult = (target: ParseWorkerResult, src: ParseWorkerResult) => {
   appendAll(target.nodes, src.nodes);
