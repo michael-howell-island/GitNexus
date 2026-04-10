@@ -2,6 +2,14 @@ import { Worker } from 'node:worker_threads';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { appendAll } from '../../../lib/array-utils.js';
+
+export interface DispatchResult<TInput, TResult> {
+  /** Results from workers that completed successfully */
+  results: TResult[];
+  /** Items from workers that failed (timeout, crash, etc.) */
+  failedItems: TInput[];
+}
 
 export interface WorkerPool {
   /**
@@ -12,7 +20,7 @@ export interface WorkerPool {
   dispatch<TInput, TResult>(
     items: TInput[],
     onProgress?: (filesProcessed: number) => void,
-  ): Promise<TResult[]>;
+  ): Promise<DispatchResult<TInput, TResult>>;
 
   /** Terminate all workers. Must be called when done. */
   terminate(): Promise<void>;
@@ -62,11 +70,11 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
     workers.push(new Worker(workerUrl));
   }
 
-  const dispatch = <TInput, TResult>(
+  const dispatch = async <TInput, TResult>(
     items: TInput[],
     onProgress?: (filesProcessed: number) => void,
-  ): Promise<TResult[]> => {
-    if (items.length === 0) return Promise.resolve([]);
+  ): Promise<DispatchResult<TInput, TResult>> => {
+    if (items.length === 0) return { results: [] as TResult[], failedItems: [] as TInput[] };
 
     const chunkSize = Math.ceil(items.length / size);
     const chunks: TInput[][] = [];
@@ -167,7 +175,25 @@ export const createWorkerPool = (workerUrl: URL, poolSize?: number): WorkerPool 
       });
     });
 
-    return Promise.all(promises);
+    const settled = await Promise.allSettled(promises);
+    const results: TResult[] = [];
+    const failedItems: TInput[] = [];
+
+    for (let idx = 0; idx < settled.length; idx++) {
+      const outcome = settled[idx];
+      if (outcome.status === 'fulfilled') {
+        results.push(outcome.value);
+      } else {
+        if (idx < chunks.length) {
+          appendAll(failedItems, chunks[idx]);
+        }
+        console.warn(
+          `Worker ${idx} failed: ${outcome.reason instanceof Error ? outcome.reason.message : outcome.reason}`,
+        );
+      }
+    }
+
+    return { results, failedItems };
   };
 
   const terminate = async (): Promise<void> => {

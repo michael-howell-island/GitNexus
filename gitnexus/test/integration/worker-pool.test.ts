@@ -49,8 +49,8 @@ describe('worker pool integration', () => {
   it.skipIf(!hasDistWorker)('dispatches an empty batch without error', async () => {
     const workerUrl = pathToFileURL(DIST_WORKER) as URL;
     pool = createWorkerPool(workerUrl, 1);
-    const results = await pool.dispatch([]);
-    expect(results).toEqual([]);
+    const result = await pool.dispatch([]);
+    expect(result).toEqual({ results: [], failedItems: [] });
   });
 
   it.skipIf(!hasDistWorker)('parses a single TypeScript file through worker', async () => {
@@ -67,7 +67,7 @@ describe('worker pool integration', () => {
     );
     const content = fs.readFileSync(fixtureFile, 'utf-8');
 
-    const results = await pool.dispatch<any, any>([{ path: 'src/validator.ts', content }]);
+    const { results } = await pool.dispatch<any, any>([{ path: 'src/validator.ts', content }]);
 
     // Worker returns an array of results (one per worker chunk)
     expect(results).toHaveLength(1);
@@ -95,7 +95,7 @@ describe('worker pool integration', () => {
 
     expect(files.length).toBeGreaterThanOrEqual(4);
 
-    const results = await pool.dispatch<any, any>(files);
+    const { results } = await pool.dispatch<any, any>(files);
 
     // Each worker chunk returns a result
     expect(results.length).toBeGreaterThan(0);
@@ -145,6 +145,25 @@ describe('worker pool integration', () => {
     pool = undefined; // already terminated
   });
 
+  describe('partial worker failure', () => {
+    it.skipIf(!hasDistWorker)('returns DispatchResult with results and failedItems', async () => {
+      const workerUrl = pathToFileURL(DIST_WORKER) as URL;
+      pool = createWorkerPool(workerUrl, 2);
+      const fixtureFile = path.resolve(
+        __dirname,
+        '..',
+        'fixtures',
+        'mini-repo',
+        'src',
+        'validator.ts',
+      );
+      const content = fs.readFileSync(fixtureFile, 'utf-8');
+      const result = await pool.dispatch([{ path: 'validator.ts', content }]);
+      expect(result.results.length).toBeGreaterThanOrEqual(1);
+      expect(result.failedItems).toEqual([]);
+    });
+  });
+
   it('fails gracefully with invalid worker path', () => {
     const badUrl = pathToFileURL('/nonexistent/worker.js') as URL;
     // createWorkerPool validates the worker script exists before spawning
@@ -155,16 +174,17 @@ describe('worker pool integration', () => {
 
   // ─── Unhappy paths ──────────────────────────────────────────────────
 
-  it.skipIf(!hasDistWorker)('dispatch after terminate rejects', async () => {
+  it.skipIf(!hasDistWorker)('dispatch after terminate returns all items as failed', async () => {
     const workerUrl = pathToFileURL(DIST_WORKER) as URL;
     pool = createWorkerPool(workerUrl, 1);
     const terminatedPool = pool;
     await terminatedPool.terminate();
     pool = undefined; // already terminated — prevent afterEach double-terminate
 
-    await expect(
-      terminatedPool.dispatch([{ path: 'x.ts', content: 'const x = 1;' }]),
-    ).rejects.toThrow();
+    const input = [{ path: 'x.ts', content: 'const x = 1;' }];
+    const result = await terminatedPool.dispatch(input);
+    expect(result.results).toEqual([]);
+    expect(result.failedItems).toEqual(input);
   });
 
   it.skipIf(!hasDistWorker)('double terminate does not throw', async () => {
@@ -181,7 +201,7 @@ describe('worker pool integration', () => {
       const workerUrl = pathToFileURL(DIST_WORKER) as URL;
       pool = createWorkerPool(workerUrl, 1);
 
-      const results = await pool.dispatch<any, any>([{ path: 'empty.ts', content: '' }]);
+      const { results } = await pool.dispatch<any, any>([{ path: 'empty.ts', content: '' }]);
 
       expect(results).toHaveLength(1);
       const result = results[0];
