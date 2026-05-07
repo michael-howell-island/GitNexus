@@ -1244,6 +1244,28 @@ async function runGraphAnalysisPhases(
     });
   });
 
+  // ── Phase 5.5: DI Stitching (opt-in via APPS_REPO_ROOT env var) ──────────
+  // Adds interface-method → concrete-method bridge edges through Inversify DI
+  // boundaries so that process detection (Phase 6) can trace flows across
+  // interface→concrete hops. Only runs when APPS_REPO_ROOT is explicitly set.
+  {
+    const appsRoot = process.env['APPS_REPO_ROOT'];
+    if (appsRoot) {
+      try {
+        const { runDiStitchPass } = await import('./di/di-stitcher.js');
+        onProgress({
+          phase: 'di',
+          percent: 93,
+          message: 'Stitching DI bindings...',
+          stats: { filesProcessed: totalFiles, totalFiles, nodesCreated: graph.nodeCount },
+        });
+        await runDiStitchPass(graph, appsRoot);
+      } catch {
+        // DI stitch failed — skip silently, don't break analysis
+      }
+    }
+  }
+
   // ── Phase 6: Processes ─────────────────────────────────────────────
   onProgress({
     phase: 'processes',

@@ -190,7 +190,12 @@ export function streamSSE<T = unknown>(url: string, handlers: SSEHandlers<T>): A
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
-let _backendUrl = 'http://localhost:4747';
+// When served directly from the gitnexus server (localhost:4747), use the
+// same origin so requests always hit the right backend without configuration.
+let _backendUrl =
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? window.location.origin
+    : 'http://localhost:4747';
 
 export const setBackendUrl = (url: string): void => {
   _backendUrl = url.replace(/\/$/, '');
@@ -617,6 +622,70 @@ export const fetchClusters = async (repo?: string): Promise<unknown> => {
 export const fetchClusterDetail = async (repo: string, name: string): Promise<unknown> => {
   const response = await fetchWithTimeout(
     `${_backendUrl}/api/cluster?${repoParam(repo)}&name=${encodeURIComponent(name)}`,
+  );
+  await assertOk(response);
+  return response.json();
+};
+
+/** Fetch community-aggregated graph for the overview visualization. */
+export const fetchGraphOverview = async (
+  repo?: string,
+): Promise<{
+  communities: Array<{ id: string; label: string; symbolCount: number }>;
+  edges: Array<{ source: string; target: string; weight: number }>;
+}> => {
+  const response = await fetchWithTimeout(
+    `${_backendUrl}/api/graph/overview${repo ? `?${repoParam(repo)}` : ''}`,
+    {},
+    30_000,
+  );
+  await assertOk(response);
+  return response.json();
+};
+
+/** Fetch nodes + edges within a single community for drill-down. */
+export const fetchClusterGraph = async (
+  label: string,
+  repo?: string,
+): Promise<{ nodes: GraphNode[]; relationships: GraphRelationship[] }> => {
+  const params = [`label=${encodeURIComponent(label)}`, repo ? repoParam(repo) : '']
+    .filter(Boolean)
+    .join('&');
+  const response = await fetchWithTimeout(`${_backendUrl}/api/graph/cluster?${params}`, {}, 30_000);
+  await assertOk(response);
+  return response.json();
+};
+
+// ── Topology API ───────────────────────────────────────────────────────────
+
+export interface TopologyFolder {
+  id: string;
+  name: string;
+  depth: number;
+  nodeCount: number;
+  fileCount: number;
+  children: TopologyFolder[];
+}
+
+export interface TopologyEdge {
+  source: string; // folder id
+  target: string; // folder id
+  weight: number; // aggregated call count
+}
+
+export interface TopologyData {
+  root: TopologyFolder;
+  edges: TopologyEdge[];
+  commonPrefix: string;
+}
+
+/** Fetch folder-tree topology for the topology graph visualization. */
+export const fetchTopology = async (depth = 3, repo?: string): Promise<TopologyData> => {
+  const params = [`depth=${depth}`, repo ? repoParam(repo) : ''].filter(Boolean).join('&');
+  const response = await fetchWithTimeout(
+    `${_backendUrl}/api/graph/topology?${params}`,
+    {},
+    60_000,
   );
   await assertOk(response);
   return response.json();

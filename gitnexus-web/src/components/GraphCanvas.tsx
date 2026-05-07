@@ -4,12 +4,14 @@ import {
   ZoomOut,
   Maximize2,
   Focus,
+  Layers,
   RotateCcw,
   Play,
   Pause,
   Lightbulb,
   LightbulbOff,
 } from '@/lib/lucide-icons';
+import { GraphOverview } from './GraphOverview';
 import { useSigma } from '../hooks/useSigma';
 import { useAppState } from '../hooks/useAppState';
 import {
@@ -20,6 +22,7 @@ import {
 } from '../lib/graph-adapter';
 import type { GraphNode } from 'gitnexus-shared';
 import { QueryFAB } from './QueryFAB';
+import { TopologyGraph } from './TopologyGraph';
 import Graph from 'graphology';
 
 export interface GraphCanvasHandle {
@@ -48,6 +51,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle>((_, ref) => {
     animatedNodes,
   } = useAppState();
   const [hoveredNodeName, setHoveredNodeName] = useState<string | null>(null);
+  const [showOverview, setShowOverview] = useState(false);
+
+  const RENDER_NODE_LIMIT = 10_000;
+  const isTooLarge = !!graph && graph.nodeCount > RENDER_NODE_LIMIT;
 
   const effectiveHighlightedNodeIds = useMemo(() => {
     if (!isAIHighlightsEnabled) return highlightedNodeIds;
@@ -168,9 +175,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle>((_, ref) => {
     [focusNode, graph, nodeById, setSelectedNode, openCodePanel],
   );
 
+  // Auto-open community overview for large graphs
+  useEffect(() => {
+    if (isTooLarge) setShowOverview(true);
+  }, [isTooLarge]);
+
   // Update Sigma graph when KnowledgeGraph changes
   useEffect(() => {
-    if (!graph) return;
+    if (!graph || isTooLarge) return;
 
     // Build communityMemberships map from MEMBER_OF relationships
     // MEMBER_OF edges: nodeId -> communityId (stored as targetId)
@@ -243,11 +255,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle>((_, ref) => {
         />
       </div>
 
-      {/* Sigma container */}
-      <div
-        ref={containerRef}
-        className="sigma-container h-full w-full cursor-grab active:cursor-grabbing"
-      />
+      {/* Topology graph for large codebases; sigma for small ones */}
+      {isTooLarge ? (
+        <TopologyGraph />
+      ) : (
+        <div
+          ref={containerRef}
+          className="sigma-container h-full w-full cursor-grab active:cursor-grabbing"
+        />
+      )}
 
       {/* Hovered node tooltip - only show when NOT selected */}
       {hoveredNodeName && !sigmaSelectedNode && (
@@ -295,6 +311,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle>((_, ref) => {
           title="Fit to Screen"
         >
           <Maximize2 className="h-4 w-4" />
+        </button>
+
+        {/* Divider */}
+        <div className="my-1 h-px bg-border-subtle" />
+
+        {/* Community overview */}
+        <button
+          onClick={() => setShowOverview(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle bg-elevated text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
+          title="Community Overview"
+        >
+          <Layers className="h-4 w-4" />
         </button>
 
         {/* Divider */}
@@ -369,6 +397,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle>((_, ref) => {
           )}
         </button>
       </div>
+
+      {showOverview && <GraphOverview onClose={() => setShowOverview(false)} />}
     </div>
   );
 });

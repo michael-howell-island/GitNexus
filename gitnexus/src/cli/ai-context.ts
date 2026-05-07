@@ -98,6 +98,7 @@ This project is indexed by GitNexus as **${projectName}** (${stats.nodes || 0} s
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use \`gitnexus_query({query: "concept"})\` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use \`gitnexus_context({name: "symbolName"})\`.
+- **DI / Inversify boundaries are transparent.** The graph includes synthetic \`CALLS\` edges with \`reason: 'di-resolved'\` that bridge interface methods to their DI-bound concrete implementations. When tracing a call chain that reaches an interface method (e.g. \`IHttpClient.request\`), the graph continues through to the concrete (e.g. \`HttpClient.request\`) — do not stop at the interface. \`gitnexus_context\` and \`gitnexus_impact\` traverse these edges automatically.
 
 ## When Debugging
 

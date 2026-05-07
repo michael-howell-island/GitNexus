@@ -424,6 +424,19 @@ const requestedRepo = (req: express.Request): string | undefined => {
   return undefined;
 };
 
+/** Returns the longest common path prefix shared by all paths (ends at a '/' boundary). */
+function findCommonPrefix(paths: string[]): string {
+  if (paths.length === 0) return '';
+  const sorted = [...paths].sort();
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  let i = 0;
+  while (i < first.length && first[i] === last[i]) i++;
+  const shared = first.slice(0, i);
+  const slashIdx = shared.lastIndexOf('/');
+  return slashIdx > 0 ? shared.slice(0, slashIdx) : shared;
+}
+
 export const createServer = async (port: number, host: string = '127.0.0.1') => {
   const app = express();
   app.disable('x-powered-by');
@@ -1061,6 +1074,285 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
     }
   });
 
+  // ── Topology Graph API ──────────────────────────────────────────────
+
+  // GET /api/graph/topology?depth=3
+  // Returns a folder-tree view of the codebase suitable for the topology graph.
+  // Nodes are aggregated by folder path up to `depth` levels; edges are
+  // cross-folder CALLS aggregated by folder-pair call count.
+  app.get('/api/graph/topology', async (req, res) => {
+    try {
+      const maxDepth = Math.min(8, Math.max(1, parseInt(String(req.query.depth ?? '3'), 10)));
+
+      const entry = await resolveRepo(requestedRepo(req));
+      if (!entry) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
+      const lbugPath = path.join(entry.storagePath, 'lbug');
+
+      const result = await withLbugDb(lbugPath, async () => {
+        // All file paths with symbol counts (skip node_modules / test artifacts)
+        const fileRows: { filePath: string; nodeCount: number }[] = await executeQuery(
+          `MATCH (n) WHERE n.filePath IS NOT NULL
+             AND NOT n.filePath CONTAINS 'node_modules'
+             AND NOT n.filePath CONTAINS '.gitnexus'
+           RETURN n.filePath AS filePath, count(n) AS nodeCount`,
+        );
+
+        // Cross-file CALLS (sample — enough to build folder-level edges)
+        const callRows: { sourceFile: string; targetFile: string; callCount: number }[] =
+          await executeQuery(
+            `MATCH (a)-[r:CodeRelation {type: 'CALLS'}]->(b)
+             WHERE a.filePath IS NOT NULL AND b.filePath IS NOT NULL
+               AND NOT a.filePath CONTAINS 'node_modules'
+               AND NOT b.filePath CONTAINS 'node_modules'
+               AND a.filePath <> b.filePath
+             RETURN a.filePath AS sourceFile, b.filePath AS targetFile, count(r) AS callCount
+             LIMIT 100000`,
+          ).catch(() => []);
+
+        // ── Build folder tree ──────────────────────────────────────────
+        // Detect the common path prefix to strip it (avoids /Users/howell/... prefix noise)
+        const allPaths = fileRows.map((r) => r.filePath).filter(Boolean);
+        const commonPrefix = findCommonPrefix(allPaths);
+
+        interface FolderNode {
+          id: string; // full path up to this folder
+          name: string; // last segment
+          depth: number;
+          children: Map<string, FolderNode>;
+          nodeCount: number; // direct + descendant symbols
+          fileCount: number;
+        }
+
+        const root: FolderNode = {
+          id: commonPrefix,
+          name: commonPrefix.split('/').filter(Boolean).pop() ?? '/',
+          depth: 0,
+          children: new Map(),
+          nodeCount: 0,
+          fileCount: 0,
+        };
+
+        for (const { filePath, nodeCount } of fileRows) {
+          const rel = filePath.startsWith(commonPrefix)
+            ? filePath.slice(commonPrefix.length)
+            : filePath;
+          const parts = rel.split('/').filter(Boolean);
+          // Walk / create folder nodes up to maxDepth
+          let cur = root;
+          cur.nodeCount += nodeCount;
+          cur.fileCount++;
+          for (let i = 0; i < Math.min(parts.length - 1, maxDepth); i++) {
+            const seg = parts[i];
+            const childId = cur.id + '/' + seg;
+            if (!cur.children.has(seg)) {
+              cur.children.set(seg, {
+                id: childId,
+                name: seg,
+                depth: i + 1,
+                children: new Map(),
+                nodeCount: 0,
+                fileCount: 0,
+              });
+            }
+            const child = cur.children.get(seg)!;
+            child.nodeCount += nodeCount;
+            child.fileCount++;
+            cur = child;
+          }
+        }
+
+        // ── Serialise tree ─────────────────────────────────────────────
+        interface SerializedFolder {
+          id: string;
+          name: string;
+          depth: number;
+          nodeCount: number;
+          fileCount: number;
+          children: SerializedFolder[];
+        }
+
+        function serialize(node: FolderNode): SerializedFolder {
+          return {
+            id: node.id,
+            name: node.name,
+            depth: node.depth,
+            nodeCount: node.nodeCount,
+            fileCount: node.fileCount,
+            children: Array.from(node.children.values())
+              .sort((a, b) => b.nodeCount - a.nodeCount)
+              .map(serialize),
+          };
+        }
+
+        // ── Build folder-pair edges ────────────────────────────────────
+        // Map each file to its maxDepth folder id, then aggregate call counts
+        function fileToFolderPath(filePath: string): string {
+          const rel = filePath.startsWith(commonPrefix)
+            ? filePath.slice(commonPrefix.length)
+            : filePath;
+          const parts = rel.split('/').filter(Boolean);
+          const folderParts = parts.slice(0, Math.min(parts.length - 1, maxDepth));
+          return commonPrefix + '/' + folderParts.join('/');
+        }
+
+        const edgeMap = new Map<string, number>();
+        for (const { sourceFile, targetFile, callCount } of callRows) {
+          const src = fileToFolderPath(sourceFile);
+          const tgt = fileToFolderPath(targetFile);
+          if (src === tgt) continue;
+          const key = `${src}|||${tgt}`;
+          edgeMap.set(key, (edgeMap.get(key) ?? 0) + Number(callCount));
+        }
+
+        const edges = Array.from(edgeMap.entries()).map(([key, weight]) => {
+          const [source, target] = key.split('|||');
+          return { source, target, weight };
+        });
+
+        return { root: serialize(root), edges, commonPrefix };
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to build topology' });
+    }
+  });
+
+  // ── Graph Overview API ───────────────────────────────────────────────
+
+  // GET /api/graph/overview — community nodes + cross-community edges
+  // Returns a small graph (~6k nodes) suitable for a fast overview visualization.
+  app.get('/api/graph/overview', async (req, res) => {
+    try {
+      const entry = await resolveRepo(requestedRepo(req));
+      if (!entry) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
+      const lbugPath = path.join(entry.storagePath, 'lbug');
+
+      const result = await withLbugDb(lbugPath, async () => {
+        const communities = await executeQuery(
+          `MATCH (c:Community)
+           RETURN c.id AS id, c.heuristicLabel AS label, c.symbolCount AS symbolCount
+           ORDER BY c.symbolCount DESC`,
+        );
+
+        // Cross-community edges: aggregate CALLS across community boundaries.
+        // LIMIT 8000 keeps the query fast while giving enough edges for a useful layout.
+        let edges: { source: string; target: string; weight: number }[] = [];
+        try {
+          edges = await executeQuery(
+            `MATCH (a)-[:CodeRelation {type: 'MEMBER_OF'}]->(ca:Community)
+             MATCH (b)-[:CodeRelation {type: 'MEMBER_OF'}]->(cb:Community)
+             MATCH (a)-[r:CodeRelation {type: 'CALLS'}]->(b)
+             WHERE ca.id <> cb.id
+             RETURN ca.id AS source, cb.id AS target, count(r) AS weight
+             LIMIT 8000`,
+          );
+        } catch {
+          // Non-fatal: overview without edges still shows communities
+        }
+
+        return { communities, edges };
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to build graph overview' });
+    }
+  });
+
+  // GET /api/graph/cluster?label=X — nodes + edges within a single community
+  // Returns the same { nodes, relationships } shape as /api/graph so the
+  // existing graph-adapter can convert it directly.
+  app.get('/api/graph/cluster', async (req, res) => {
+    try {
+      const label = String(req.query.label ?? '').trim();
+      if (!label) {
+        res.status(400).json({ error: 'Missing "label" query parameter' });
+        return;
+      }
+
+      const entry = await resolveRepo(requestedRepo(req));
+      if (!entry) {
+        res.status(404).json({ error: 'Repository not found' });
+        return;
+      }
+      const lbugPath = path.join(entry.storagePath, 'lbug');
+
+      const result = await withLbugDb(lbugPath, async () => {
+        const nodes: GraphNode[] = [];
+
+        // Query each symbol table for members of this community.
+        // We query per-table to recover the node label (type), which isn't stored
+        // as a property — it's implicit in which table the node lives in.
+        const symbolTables = [
+          'Function',
+          'Class',
+          'Method',
+          'Interface',
+          'File',
+          'CodeElement',
+          'Route',
+          'Tool',
+        ] as const;
+
+        for (const table of symbolTables) {
+          try {
+            const rows = await executePrepared(
+              `MATCH (n:\`${table}\`)-[:CodeRelation {type: 'MEMBER_OF'}]->(c:Community)
+               WHERE c.heuristicLabel = $label
+               RETURN n.id AS id, n.name AS name, n.filePath AS filePath,
+                      n.startLine AS startLine, n.endLine AS endLine`,
+              { label },
+            );
+            for (const row of rows) {
+              nodes.push({
+                id: row.id,
+                label: table,
+                properties: {
+                  name: row.name,
+                  filePath: row.filePath,
+                  startLine: row.startLine,
+                  endLine: row.endLine,
+                },
+              });
+            }
+          } catch {
+            // Table may not exist in every repo — skip silently
+          }
+        }
+
+        // Intra-community edges: double-join through the community node.
+        const relRows = await executePrepared(
+          `MATCH (a)-[:CodeRelation {type: 'MEMBER_OF'}]->(c:Community)
+           WHERE c.heuristicLabel = $label
+           MATCH (b)-[:CodeRelation {type: 'MEMBER_OF'}]->(c)
+           MATCH (a)-[r:CodeRelation]->(b)
+           WHERE r.type IN ['CALLS', 'IMPORTS', 'DEFINES', 'EXTENDS', 'IMPLEMENTS', 'HAS_METHOD']
+           RETURN a.id AS sourceId, b.id AS targetId, r.type AS type,
+                  r.confidence AS confidence, r.reason AS reason
+           LIMIT 5000`,
+          { label },
+        );
+
+        const relationships: GraphRelationship[] = relRows.map((row: any) =>
+          mapGraphRelationshipRow(row),
+        );
+
+        return { nodes, relationships };
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to load cluster graph' });
+    }
+  });
+
   // ── Analyze API ──────────────────────────────────────────────────────
 
   // POST /api/analyze — start a new analysis job
@@ -1457,6 +1749,25 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
     res.json({ id: job.id, status: 'failed', error: 'Cancelled by user' });
   });
 
+  // Serve the bundled web UI (built by `gitnexus-web` vite and copied into dist/web/).
+  // Falls back gracefully if the web UI hasn't been built yet.
+  const webDist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web');
+  try {
+    await fs.access(webDist);
+    app.use(express.static(webDist));
+    // SPA fallback: any unmatched GET returns index.html so client-side routing works.
+    // Exclude well-known browser probe paths so they don't get served the SPA.
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/.well-known/')) {
+        res.status(404).end();
+        return;
+      }
+      res.sendFile(path.join(webDist, 'index.html'));
+    });
+  } catch {
+    // Web UI not built — API-only mode.
+  }
+
   // Global error handler — catch anything the route handlers miss
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled error:', err);
@@ -1468,7 +1779,9 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(port, host, () => {
       const displayHost = host === '::' || host === '0.0.0.0' ? 'localhost' : host;
-      console.log(`GitNexus server running on http://${displayHost}:${port}`);
+      const baseUrl = `http://${displayHost}:${port}`;
+      console.log(`GitNexus server running on ${baseUrl}`);
+      console.log(`Graph UI: ${baseUrl}`);
       resolve();
     });
     server.on('error', (err) => reject(err));

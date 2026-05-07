@@ -16,6 +16,7 @@ export {
   Braces,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   Code,

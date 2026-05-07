@@ -27,15 +27,7 @@ export interface ToolDefinition {
 export const GITNEXUS_TOOLS: ToolDefinition[] = [
   {
     name: 'list_repos',
-    description: `List all indexed repositories available to GitNexus.
-
-Returns each repo's name, path, indexed date, last commit, and stats.
-
-WHEN TO USE: First step when multiple repos are indexed, or to discover available repos.
-AFTER THIS: READ gitnexus://repo/{name}/context for the repo you want to work with.
-
-When multiple repos are indexed, you MUST specify the "repo" parameter
-on other tools (query, context, impact, etc.) to target the correct one.`,
+    description: `List all indexed repositories. Returns name, path, indexed date, last commit, and stats. When multiple repos exist, specify "repo" on other tools to target the correct one.`,
     inputSchema: {
       type: 'object',
       properties: {},
@@ -44,18 +36,9 @@ on other tools (query, context, impact, etc.) to target the correct one.`,
   },
   {
     name: 'query',
-    description: `Query the code knowledge graph for execution flows related to a concept.
-Returns processes (call chains) ranked by relevance, each with its symbols and file locations.
+    description: `Query the code knowledge graph for execution flows related to a concept. Returns processes (call chains) ranked by relevance with symbols and file locations. Use context() on a specific symbol for deeper analysis.
 
-WHEN TO USE: Understanding how code works together. Use this when you need execution flows and relationships, not just file matches. Complements grep/IDE search.
-AFTER THIS: Use context() on a specific symbol for 360-degree view (callers, callees, categorized refs).
-
-Returns results grouped by process (execution flow):
-- processes: ranked execution flows with relevance priority
-- process_symbols: all symbols in those flows with file locations and module (functional area)
-- definitions: standalone types/interfaces not in any process
-
-Hybrid ranking: BM25 keyword + semantic vector search, ranked by Reciprocal Rank Fusion.`,
+Results: processes (ranked flows), process_symbols (symbols with locations and module), definitions (standalone types). Hybrid BM25 + semantic ranking.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -90,50 +73,23 @@ Hybrid ranking: BM25 keyword + semantic vector search, ranked by Reciprocal Rank
   },
   {
     name: 'cypher',
-    description: `Execute Cypher query against the code knowledge graph.
+    description: `Execute Cypher query against the code knowledge graph. READ gitnexus://repo/{name}/schema for full schema.
 
-WHEN TO USE: Complex structural queries that search/explore can't answer. READ gitnexus://repo/{name}/schema first for the full schema.
-AFTER THIS: Use context() on result symbols for deeper context.
+Nodes: File, Folder, Function, Class, Interface, Method, CodeElement, Community, Process, Route, Tool. Multi-lang: \`Struct\`, \`Enum\`, \`Trait\`, \`Impl\` (backticks).
+Edges: all via CodeRelation with 'type' property — CALLS, IMPORTS, EXTENDS, IMPLEMENTS, HAS_METHOD, HAS_PROPERTY, ACCESSES, METHOD_OVERRIDES, METHOD_IMPLEMENTS, MEMBER_OF, STEP_IN_PROCESS, HANDLES_ROUTE, FETCHES, HANDLES_TOOL, ENTRY_POINT_OF.
+Edge props: type (STRING), confidence (DOUBLE), reason (STRING), step (INT32).
 
-SCHEMA:
-- Nodes: File, Folder, Function, Class, Interface, Method, CodeElement, Community, Process, Route, Tool
-- Multi-language nodes (use backticks): \`Struct\`, \`Enum\`, \`Trait\`, \`Impl\`, etc.
-- All edges via single CodeRelation table with 'type' property
-- Edge types: CONTAINS, DEFINES, CALLS, IMPORTS, EXTENDS, IMPLEMENTS, HAS_METHOD, HAS_PROPERTY, ACCESSES, METHOD_OVERRIDES, METHOD_IMPLEMENTS, MEMBER_OF, STEP_IN_PROCESS, HANDLES_ROUTE, FETCHES, HANDLES_TOOL, ENTRY_POINT_OF
-- Edge properties: type (STRING), confidence (DOUBLE), reason (STRING), step (INT32)
+Examples (cover all major patterns):
+• Callers: MATCH (a)-[:CodeRelation {type: 'CALLS'}]->(b:Function {name: "validateUser"}) RETURN a.name, a.filePath
+• Community members: MATCH (f)-[:CodeRelation {type: 'MEMBER_OF'}]->(c:Community) WHERE c.heuristicLabel = "Auth" RETURN f.name
+• Process trace: MATCH (s)-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process) WHERE p.heuristicLabel = "UserLogin" RETURN s.name, r.step ORDER BY r.step
+• Class methods: MATCH (c:Class {name: "UserService"})-[:CodeRelation {type: 'HAS_METHOD'}]->(m:Method) RETURN m.name
+• Field writers: MATCH (f:Function)-[:CodeRelation {type: 'ACCESSES', reason: 'write'}]->(p:Property) WHERE p.name = "address" RETURN f.name
+• Method overrides: MATCH (winner:Method)-[r:CodeRelation {type: 'METHOD_OVERRIDES'}]->(loser:Method) RETURN winner.name, r.reason
+• Class properties: MATCH (c:Class {name: "User"})-[:CodeRelation {type: 'HAS_PROPERTY'}]->(p:Property) RETURN p.name, p.declaredType
+• Diamond inheritance: MATCH (d:Class)-[:CodeRelation {type: 'EXTENDS'}]->(b1), (d)-[:CodeRelation {type: 'EXTENDS'}]->(b2), (b1)-[:CodeRelation {type: 'EXTENDS'}]->(a), (b2)-[:CodeRelation {type: 'EXTENDS'}]->(a) WHERE b1 <> b2 RETURN d.name, b1.name, b2.name, a.name
 
-EXAMPLES:
-• Find callers of a function:
-  MATCH (a)-[:CodeRelation {type: 'CALLS'}]->(b:Function {name: "validateUser"}) RETURN a.name, a.filePath
-
-• Find community members:
-  MATCH (f)-[:CodeRelation {type: 'MEMBER_OF'}]->(c:Community) WHERE c.heuristicLabel = "Auth" RETURN f.name
-
-• Trace a process:
-  MATCH (s)-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process) WHERE p.heuristicLabel = "UserLogin" RETURN s.name, r.step ORDER BY r.step
-
-• Find all methods of a class:
-  MATCH (c:Class {name: "UserService"})-[r:CodeRelation {type: 'HAS_METHOD'}]->(m:Method) RETURN m.name, m.parameterCount, m.returnType
-
-• Find all properties of a class:
-  MATCH (c:Class {name: "User"})-[r:CodeRelation {type: 'HAS_PROPERTY'}]->(p:Property) RETURN p.name, p.declaredType
-
-• Find all writers of a field:
-  MATCH (f:Function)-[r:CodeRelation {type: 'ACCESSES', reason: 'write'}]->(p:Property) WHERE p.name = "address" RETURN f.name, f.filePath
-
-• Find method overrides (MRO resolution):
-  MATCH (winner:Method)-[r:CodeRelation {type: 'METHOD_OVERRIDES'}]->(loser:Method) RETURN winner.name, winner.filePath, loser.filePath, r.reason
-
-• Detect diamond inheritance:
-  MATCH (d:Class)-[:CodeRelation {type: 'EXTENDS'}]->(b1), (d)-[:CodeRelation {type: 'EXTENDS'}]->(b2), (b1)-[:CodeRelation {type: 'EXTENDS'}]->(a), (b2)-[:CodeRelation {type: 'EXTENDS'}]->(a) WHERE b1 <> b2 RETURN d.name, b1.name, b2.name, a.name
-
-OUTPUT: Returns { markdown, row_count } — results formatted as a Markdown table for easy reading.
-
-TIPS:
-- All relationships use single CodeRelation table — filter with {type: 'CALLS'} etc.
-- Community = auto-detected functional area (Leiden algorithm). Properties: heuristicLabel, cohesion, symbolCount, keywords, description, enrichedBy
-- Process = execution flow trace from entry point to terminal. Properties: heuristicLabel, processType, stepCount, communities, entryPointId, terminalId
-- Use heuristicLabel (not label) for human-readable community/process names`,
+Community = auto-detected functional area (heuristicLabel, cohesion, symbolCount, keywords). Process = execution flow (heuristicLabel, processType, stepCount). Use heuristicLabel (not label). Returns { markdown, row_count }.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -148,15 +104,7 @@ TIPS:
   },
   {
     name: 'context',
-    description: `360-degree view of a single code symbol.
-Shows categorized incoming/outgoing references (calls, imports, extends, implements, methods, properties, overrides), process participation, and file location.
-
-WHEN TO USE: After query() to understand a specific symbol in depth. When you need to know all callers, callees, and what execution flows a symbol participates in.
-AFTER THIS: Use impact() if planning changes, or READ gitnexus://repo/{name}/process/{processName} for full execution trace.
-
-Handles disambiguation: if multiple symbols share the same name, returns candidates for you to pick from. Use uid param for zero-ambiguity lookup from prior results.
-
-NOTE: ACCESSES edges (field read/write tracking) are included in context results with reason 'read' or 'write'. CALLS edges resolve through field access chains and method-call chains (e.g., user.address.getCity().save() produces CALLS edges at each step).`,
+    description: `360-degree view of a code symbol: callers, callees, imports, extends, methods, properties, overrides, process participation, and file location. Disambiguates common names (use uid for zero-ambiguity). ACCESSES edges included with reason 'read' or 'write'. CALLS resolve through field access chains (e.g. user.address.getCity()). Use impact() if planning changes.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -181,13 +129,7 @@ NOTE: ACCESSES edges (field read/write tracking) are included in context results
   },
   {
     name: 'detect_changes',
-    description: `Analyze uncommitted git changes and find affected execution flows.
-Maps git diff hunks to indexed symbols, then traces which processes are impacted.
-
-WHEN TO USE: Before committing — to understand what your changes affect. Pre-commit review, PR preparation.
-AFTER THIS: Review affected processes. Use context() on high-risk symbols. READ gitnexus://repo/{name}/process/{name} for full traces.
-
-Returns: changed symbols, affected processes, and a risk summary.`,
+    description: `Analyze uncommitted git changes and find affected execution flows. Maps diff hunks to symbols, traces impacted processes. Returns changed symbols, affected processes, and risk summary.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -211,15 +153,7 @@ Returns: changed symbols, affected processes, and a risk summary.`,
   },
   {
     name: 'rename',
-    description: `Multi-file coordinated rename using the knowledge graph + text search.
-Finds all references via graph (high confidence) and regex text search (lower confidence). Preview by default.
-
-WHEN TO USE: Renaming a function, class, method, or variable across the codebase. Safer than find-and-replace.
-AFTER THIS: Run detect_changes() to verify no unexpected side effects.
-
-Each edit is tagged with confidence:
-- "graph": found via knowledge graph relationships (high confidence, safe to accept)
-- "text_search": found via regex text search (lower confidence, review carefully)`,
+    description: `Multi-file coordinated rename using knowledge graph + text search. Preview by default (dry_run=true). Edits tagged "graph" (high confidence) or "text_search" (review carefully). Run detect_changes() after to verify.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -245,28 +179,9 @@ Each edit is tagged with confidence:
   },
   {
     name: 'impact',
-    description: `Analyze the blast radius of changing a code symbol.
-Returns affected symbols grouped by depth, plus risk assessment, affected execution flows, and affected modules.
+    description: `Blast radius analysis for a code symbol. Returns risk (LOW–CRITICAL), affected symbols by depth (d=1: WILL BREAK, d=2: LIKELY AFFECTED, d=3: MAY NEED TESTING), affected processes, and affected modules.
 
-WHEN TO USE: Before making code changes — especially refactoring, renaming, or modifying shared code. Shows what would break.
-AFTER THIS: Review d=1 items (WILL BREAK). Use context() on high-risk symbols.
-
-Output includes:
-- risk: LOW / MEDIUM / HIGH / CRITICAL
-- summary: direct callers, processes affected, modules affected
-- affected_processes: which execution flows break and at which step
-- affected_modules: which functional areas are hit (direct vs indirect)
-- byDepth: all affected symbols grouped by traversal depth
-
-Depth groups:
-- d=1: WILL BREAK (direct callers/importers)
-- d=2: LIKELY AFFECTED (indirect)
-- d=3: MAY NEED TESTING (transitive)
-
-TIP: Default traversal uses CALLS/IMPORTS/EXTENDS/IMPLEMENTS. For class members, include HAS_METHOD and HAS_PROPERTY in relationTypes. For field access analysis, include ACCESSES in relationTypes.
-
-EdgeType: CALLS, IMPORTS, EXTENDS, IMPLEMENTS, HAS_METHOD, HAS_PROPERTY, METHOD_OVERRIDES, METHOD_IMPLEMENTS, ACCESSES
-Confidence: 1.0 = certain, <0.8 = fuzzy match`,
+Use before refactoring or modifying shared code. Default traversal: CALLS/IMPORTS/EXTENDS/IMPLEMENTS. Add HAS_METHOD/HAS_PROPERTY for class members, ACCESSES for field analysis.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -298,12 +213,7 @@ Confidence: 1.0 = certain, <0.8 = fuzzy match`,
   },
   {
     name: 'route_map',
-    description: `Show API route mappings: which components/hooks fetch which API endpoints, and which handler files serve them.
-
-WHEN TO USE: Understanding API consumption patterns, finding orphaned routes. For pre-change analysis, prefer \`api_impact\` which combines this data with mismatch detection and risk assessment.
-AFTER THIS: Use impact() on specific route handlers to see full blast radius.
-
-Returns: route nodes with their handlers, middleware wrapper chains (e.g., withAuth, withRateLimit), and consumers.`,
+    description: `Show API route mappings: handlers, middleware chains, and consumers. For pre-change analysis, prefer api_impact. Use impact() on route handlers for full blast radius.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -337,12 +247,7 @@ Returns: tool nodes with their handler files and descriptions.`,
   },
   {
     name: 'shape_check',
-    description: `Check response shapes for API routes against their consumers' property accesses.
-
-WHEN TO USE: Detecting mismatches between what an API route returns and what consumers expect. Finding shape drift. For pre-change analysis, prefer \`api_impact\` which combines this data with mismatch detection and risk assessment.
-REQUIRES: Route nodes with responseKeys (extracted from .json({...}) calls during indexing).
-
-Returns routes that have both detected response keys AND consumers. Shows top-level keys each endpoint returns (e.g., data, pagination, error) and what keys each consumer accesses. Reports MISMATCH status when a consumer accesses keys not present in the route's response shape.`,
+    description: `Check API response shapes against consumer property accesses. Detects mismatches where consumers access keys not in the route's response. For pre-change analysis, prefer api_impact.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -360,13 +265,7 @@ Returns routes that have both detected response keys AND consumers. Shows top-le
   },
   {
     name: 'api_impact',
-    description: `Pre-change impact report for an API route handler.
-
-WHEN TO USE: BEFORE modifying any API route handler. Shows what consumers depend on, what response fields they access, what middleware protects the route, and what execution flows it triggers. Requires at least "route" or "file" parameter.
-
-Risk levels: LOW (0-3 consumers), MEDIUM (4-9 or any mismatches), HIGH (10+ consumers or mismatches with 4+ consumers). Mismatches with confidence "low" indicate the consumer file fetches multiple routes — property attribution is approximate.
-
-Returns: single route object when one match, or { routes: [...], total: N } for multiple matches. Combines route_map, shape_check, and impact data.`,
+    description: `Pre-change impact report for an API route handler. Shows consumers, response fields accessed, middleware, and execution flows. Risk: LOW (0-3 consumers), MEDIUM (4-9 or mismatches), HIGH (10+). Requires "route" or "file" param.`,
     inputSchema: {
       type: 'object',
       properties: {

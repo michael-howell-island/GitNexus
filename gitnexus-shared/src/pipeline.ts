@@ -11,6 +11,7 @@ export type PipelinePhase =
   | 'calls'
   | 'heritage'
   | 'communities'
+  | 'di'
   | 'processes'
   | 'enriching'
   | 'complete'

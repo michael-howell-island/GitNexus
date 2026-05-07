@@ -77,6 +77,7 @@ export const PHASE_LABELS: Record<string, string> = {
   calls: 'Tracing calls',
   heritage: 'Extracting inheritance',
   communities: 'Detecting communities',
+  di: 'Stitching DI bindings',
   processes: 'Detecting processes',
   complete: 'Pipeline complete',
   lbug: 'Loading into LadybugDB',
