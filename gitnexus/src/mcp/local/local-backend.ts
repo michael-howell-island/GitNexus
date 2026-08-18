@@ -21,6 +21,7 @@ export { isWriteQuery };
 // at MCP server startup — crashes on unsupported Node ABI versions (#89)
 // git utilities available if needed
 // import { isGitRepo, getCurrentCommit, getGitRoot } from '../../storage/git.js';
+import { getCanonicalRepoRoot, getGitRoot } from '../../storage/git.js';
 import {
   listRegisteredRepos,
   cleanupOldKuzuFiles,
@@ -344,6 +345,21 @@ export class LocalBackend {
       const resolved = path.resolve(repoParam);
       for (const handle of this.repos.values()) {
         if (handle.repoPath === resolved) return handle;
+      }
+      // `repoParam` may be a LINKED WORKTREE rather than the registered
+      // checkout path. `gitnexus analyze` registers whatever `getGitRoot`
+      // returns for the directory it was run from, so a repo indexed from
+      // the main checkout never exact-matches a linked worktree's path (or
+      // vice versa) even though they're the same repo. Resolve repoParam's
+      // canonical root (shared across the main checkout and every linked
+      // worktree — see getCanonicalRepoRoot) and match that against each
+      // handle's own canonical root instead of throwing "not found".
+      const paramCanonicalRoot = getCanonicalRepoRoot(repoParam);
+      if (paramCanonicalRoot) {
+        for (const handle of this.repos.values()) {
+          const handleCanonicalRoot = getCanonicalRepoRoot(handle.repoPath);
+          if (handleCanonicalRoot && handleCanonicalRoot === paramCanonicalRoot) return handle;
+        }
       }
       // Match by partial name
       for (const handle of this.repos.values()) {
@@ -1517,6 +1533,7 @@ export class LocalBackend {
     params: {
       scope?: string;
       base_ref?: string;
+      worktree?: string;
     },
   ): Promise<any> {
     await this.ensureInitialized(repo.id);
@@ -1543,9 +1560,41 @@ export class LocalBackend {
         break;
     }
 
+    // Resolve the cwd to run `git diff` from. `repo.repoPath` is whatever
+    // directory `gitnexus analyze` was run from — the main checkout, or a
+    // linked worktree, whichever was indexed. If the caller (this process)
+    // is actually sitting in a DIFFERENT linked worktree of that same repo
+    // (resolveRepoFromCache now matches those to this handle too), running
+    // `git diff` from repo.repoPath would silently report the wrong working
+    // tree's changes. Prefer an explicit `worktree` override, else
+    // auto-detect from process.cwd(), else fall back to repo.repoPath.
+    let diffCwd = repo.repoPath;
+    if (params.worktree) {
+      if (!path.isAbsolute(params.worktree)) {
+        return { error: `worktree must be an absolute path, got: "${params.worktree}"` };
+      }
+      const repoCanonical = getCanonicalRepoRoot(repo.repoPath);
+      const worktreeCanonical = getCanonicalRepoRoot(params.worktree);
+      if (!repoCanonical || !worktreeCanonical || worktreeCanonical !== repoCanonical) {
+        return {
+          error: `worktree "${params.worktree}" is not a worktree of repo "${repo.repoPath}". Ensure the path is inside the same git repository.`,
+        };
+      }
+      diffCwd = path.resolve(params.worktree);
+    } else {
+      const cwdGitRoot = getGitRoot(process.cwd());
+      if (cwdGitRoot && cwdGitRoot !== repo.repoPath) {
+        const repoCanonical = getCanonicalRepoRoot(repo.repoPath);
+        const cwdCanonical = getCanonicalRepoRoot(process.cwd());
+        if (repoCanonical && cwdCanonical && repoCanonical === cwdCanonical) {
+          diffCwd = cwdGitRoot;
+        }
+      }
+    }
+
     let changedFiles: string[];
     try {
-      const output = execFileSync('git', diffArgs, { cwd: repo.repoPath, encoding: 'utf-8' });
+      const output = execFileSync('git', diffArgs, { cwd: diffCwd, encoding: 'utf-8' });
       changedFiles = output
         .trim()
         .split('\n')

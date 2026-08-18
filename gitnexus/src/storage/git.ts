@@ -33,6 +33,38 @@ export const getGitRoot = (fromPath: string): string | null => {
     return null;
   }
 };
+
+/**
+ * Get the *canonical* repository root, dereferencing git worktrees.
+ *
+ * Unlike `getGitRoot` (which returns the WORKTREE's own root when called
+ * inside a linked worktree), this uses `git rev-parse --git-common-dir` —
+ * the shared `.git` directory, identical for the main checkout and every
+ * linked worktree of the same repo — and returns its parent. So a linked
+ * worktree and its main checkout both resolve to the same canonical root,
+ * which is what `resolveRepoFromCache` needs to recognise them as "the
+ * same indexed repo" instead of two unrelated paths.
+ *
+ * Returns `null` when the path is not inside a git repository or `git` is
+ * not available.
+ */
+export const getCanonicalRepoRoot = (fromPath: string): string | null => {
+  try {
+    const commonDir = execSync('git rev-parse --path-format=absolute --git-common-dir', {
+      cwd: fromPath,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (!commonDir) return null;
+    // Common dir is `<repo>/.git` for both the main checkout and all linked
+    // worktrees. Its parent is the canonical repo root.
+    return path.dirname(path.resolve(commonDir));
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Check whether a directory contains a .git entry (file or folder).
  *

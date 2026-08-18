@@ -129,7 +129,9 @@ Community = auto-detected functional area (heuristicLabel, cohesion, symbolCount
   },
   {
     name: 'detect_changes',
-    description: `Analyze uncommitted git changes and find affected execution flows. Maps diff hunks to symbols, traces impacted processes. Returns changed symbols, affected processes, and risk summary.`,
+    description: `Analyze uncommitted git changes and find affected execution flows. Maps diff hunks to symbols, traces impacted processes. Returns changed symbols, affected processes, and risk summary.
+
+GIT WORKTREE SUPPORT: "repo" now resolves a linked worktree's path to the repo indexed at its main checkout (or vice versa) instead of failing with "not found". GitNexus also auto-detects when this process is running from inside a linked worktree of the indexed repo and runs git diff there. Pass "worktree" explicitly only when auto-detection can't see your actual working directory (e.g. a long-lived server launched from a different directory than the worktree you're editing).`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -142,6 +144,11 @@ Community = auto-detected functional area (heuristicLabel, cohesion, symbolCount
         base_ref: {
           type: 'string',
           description: 'Branch/commit for "compare" scope (e.g., "main")',
+        },
+        worktree: {
+          type: 'string',
+          description:
+            'Absolute path to a linked git worktree. Pass this when your changes are in a worktree and auto-detection did not pick it up.',
         },
         repo: {
           type: 'string',
