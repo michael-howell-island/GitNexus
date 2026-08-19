@@ -28,6 +28,7 @@ import {
   type RegistryEntry,
 } from '../../storage/repo-manager.js';
 import { GroupService, type GroupToolPort } from '../../core/group/service.js';
+import { checkStaleness } from '../../core/git-staleness.js';
 // AI context generation is CLI-only (gitnexus analyze)
 // import { generateAIContextFiles } from '../../cli/ai-context.js';
 
@@ -181,6 +182,7 @@ export class LocalBackend {
   private initializedRepos: Set<string> = new Set();
   private reinitPromises: Map<string, Promise<void>> = new Map();
   private lastStalenessCheck: Map<string, number> = new Map();
+  private lastGitStalenessCheck: Map<string, number> = new Map();
   private groupToolSvc: GroupService | null = null;
 
   /**
@@ -480,6 +482,15 @@ export class LocalBackend {
     // Resolve repo from optional param (re-reads registry on miss)
     const repo = await this.resolveRepo(params?.repo);
 
+    const result = await this.dispatchTool(method, repo, params);
+
+    const warning = this.buildStalenessWarning(repo);
+    if (!warning) return result;
+    const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    return warning + text;
+  }
+
+  private async dispatchTool(method: string, repo: RepoHandle, params: any): Promise<any> {
     switch (method) {
       case 'query':
         return this.query(repo, params);
@@ -513,6 +524,27 @@ export class LocalBackend {
       default:
         throw new Error(`Unknown tool: ${method}`);
     }
+  }
+
+  /**
+   * Check if the index is behind HEAD and return a warning banner if so.
+   * Throttled to once per 30s per repo (git rev-list is fast but not free).
+   */
+  private buildStalenessWarning(repo: RepoHandle): string {
+    const now = Date.now();
+    const last = this.lastGitStalenessCheck.get(repo.id) ?? 0;
+    if (now - last < 30_000) return '';
+    this.lastGitStalenessCheck.set(repo.id, now);
+
+    const info = checkStaleness(repo.repoPath, repo.lastCommit);
+    if (!info.isStale) return '';
+
+    const commits = info.commitsBehind;
+    return (
+      `⚠️ **Index is stale** (${commits} commit${commits > 1 ? 's' : ''} behind HEAD). ` +
+      `Results may be from a previous branch or commit. ` +
+      `Run \`gitnexus watch\` to auto-update, or \`gitnexus analyze\` to reindex now.\n\n---\n\n`
+    );
   }
 
   // ─── Tool Implementations ────────────────────────────────────────

@@ -99,6 +99,12 @@ program
   .action(createLazyAction(() => import('./wiki.js'), 'wikiCommand'));
 
 program
+  .command('watch [path]')
+  .description('Watch a repo for HEAD changes and auto-reindex on commit or branch switch')
+  .option('--embeddings', 'Include embedding generation on each reindex')
+  .action(createLazyAction(() => import('./watch.js'), 'watchCommand'));
+
+program
   .command('augment <pattern>')
   .description('Augment a search pattern with knowledge graph context (used by hooks)')
   .action(createLazyAction(() => import('./augment.js'), 'augmentCommand'));

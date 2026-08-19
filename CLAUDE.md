@@ -52,7 +52,7 @@ If always-on instructions grow, load deep conventions via conditional reads (e.g
 GitNexus MCP rules are in the `<!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **GitNexus** (4039 symbols, 9782 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **GitNexus** (4174 symbols, 9607 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -63,6 +63,7 @@ This project is indexed by GitNexus as **GitNexus** (4039 symbols, 9782 relation
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+- **DI / Inversify boundaries are transparent.** The graph includes synthetic `CALLS` edges with `reason: 'di-resolved'` that bridge interface methods to their DI-bound concrete implementations. When tracing a call chain that reaches an interface method (e.g. `IHttpClient.request`), the graph continues through to the concrete (e.g. `HttpClient.request`) — do not stop at the interface. `gitnexus_context` and `gitnexus_impact` traverse these edges automatically.
 
 ## When Debugging
 
