@@ -14,9 +14,10 @@ This project uses the [PolyForm Noncommercial License 1.0.0](https://polyformpro
 ## Development setup
 
 1. Clone the repository.
-2. **CLI / MCP package:** `cd gitnexus && npm install && npm run build`
-3. **Web UI (if needed):** `cd gitnexus-web && npm install`
-4. Run tests as described in [TESTING.md](TESTING.md).
+2. **Install workspace dependencies:** `pnpm install` (from the repo root — this is a pnpm workspace covering `gitnexus`, `gitnexus-shared`, and `gitnexus-web`).
+3. **CLI / MCP package:** `pnpm --filter gitnexus run build`
+4. **Web UI (if needed):** `pnpm --filter gitnexus-web run dev`
+5. Run tests as described in [TESTING.md](TESTING.md).
 
 ## Branch and pull requests
 

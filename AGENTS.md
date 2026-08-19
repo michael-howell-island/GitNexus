@@ -179,27 +179,27 @@ This is a monorepo with two main products and supporting config packages:
 
 ### Running services
 
-- **CLI/Core**: `cd gitnexus && npm run dev` (tsx watch mode) or `npm run build && node dist/cli/index.js <command>`
-- **Web UI**: `cd gitnexus-web && npm run dev` (Vite on port 5173)
+- **CLI/Core**: `pnpm --filter gitnexus run dev` (tsx watch mode) or `pnpm --filter gitnexus run build && node dist/cli/index.js <command>`
+- **Web UI**: `pnpm --filter gitnexus-web run dev` (Vite on port 5173)
 - **Backend mode**: `cd <indexed-repo> && node /workspace/gitnexus/dist/cli/index.js serve` (HTTP API on port 3741 by default)
 
 ### Testing
 
 **CLI / Core (`gitnexus/`)**
-- **Unit tests**: `cd gitnexus && npm test` (vitest, ~2000 tests)
-- **Integration tests**: `cd gitnexus && npm run test:integration` (vitest, ~1850 tests). Two LadybugDB file-locking tests (`lbug-core-adapter`, `search-core`) may fail in containerized environments due to `/tmp` locking limitations — this is a known environment issue, not a code bug.
+- **Unit tests**: `pnpm --filter gitnexus run test` (vitest, ~2000 tests)
+- **Integration tests**: `pnpm --filter gitnexus run test:integration` (vitest, ~1850 tests). Two LadybugDB file-locking tests (`lbug-core-adapter`, `search-core`) may fail in containerized environments due to `/tmp` locking limitations — this is a known environment issue, not a code bug.
 - **TypeScript check**: `cd gitnexus && npx tsc --noEmit`
 
 **Web UI (`gitnexus-web/`)**
-- **Unit tests**: `cd gitnexus-web && npm test` (vitest, ~200 tests)
-- **E2E tests**: `cd gitnexus-web && E2E=1 npx playwright test` (Playwright, 5 tests — requires `gitnexus serve` + `npm run dev` running)
+- **Unit tests**: `pnpm --filter gitnexus-web run test` (vitest, ~200 tests)
+- **E2E tests**: `cd gitnexus-web && E2E=1 npx playwright test` (Playwright, 5 tests — requires `gitnexus serve` + `pnpm --filter gitnexus-web run dev` running)
 - **TypeScript check**: `cd gitnexus-web && npx tsc -b --noEmit`
 
 No separate lint command is configured; TypeScript strict checking serves as the primary static analysis.
 
 ### Gotchas
 
-- `npm install` in `gitnexus/` triggers `prepare` (builds via `tsc`) and `postinstall` (patches tree-sitter-swift). Native tree-sitter bindings require `python3`, `make`, and `g++` to be present.
+- This is a **pnpm workspace** (`pnpm-workspace.yaml` at the repo root) — always run `pnpm install` from the repo root, never `npm install` in a subpackage (npm doesn't understand the `workspace:*` protocol used for the internal `gitnexus-shared` dependency). `pnpm install` triggers `gitnexus`'s `prepare` script (full build via `scripts/build.js`). Native tree-sitter bindings require `python3`, `make`, and `g++` to be present, and pnpm only runs install/build scripts for packages allowlisted under `allowBuilds` in `pnpm-workspace.yaml`.
 - `tree-sitter-kotlin` and `tree-sitter-swift` are optional dependencies — install warnings for these are expected and non-blocking.
 - The Web UI uses `vite-plugin-wasm` and requires `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy` headers for `SharedArrayBuffer` (handled automatically by Vite dev server).
 - There is no ESLint/Prettier configuration in this repo.

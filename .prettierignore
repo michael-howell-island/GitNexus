@@ -1,5 +1,6 @@
 dist/
 coverage/
+pnpm-lock.yaml
 gitnexus/vendor/
 gitnexus/test/fixtures/
 gitnexus-web/playwright-report/

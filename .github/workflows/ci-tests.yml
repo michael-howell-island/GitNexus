@@ -28,11 +28,7 @@ jobs:
           --coverage.reportOnFailure=true
         working-directory: gitnexus
 
-      # gitnexus-shared already built by setup-gitnexus action above
-      - name: Install gitnexus-web dependencies
-        run: npm ci
-        working-directory: gitnexus-web
-
+      # gitnexus-shared and gitnexus-web deps already installed by setup-gitnexus action above
       - name: Run gitnexus-web unit tests
         run: >-
           npx vitest run

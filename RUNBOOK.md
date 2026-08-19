@@ -6,12 +6,11 @@ Short, copy-paste operations for **local development**, **MCP**, and **CI**. Com
 
 - **Node.js** ≥ 20 (`gitnexus-web/package.json` `engines`).  
 - **Git** (analyze requires a git repository).  
-- From repo root, install and build the CLI package:
+- From repo root, install workspace dependencies and build the CLI package:
 
 ```bash
-cd gitnexus
-npm install
-npm run build
+pnpm install
+pnpm --filter gitnexus run build
 ```
 
 Use `npx gitnexus …` from any path after global/published install, or `node dist/cli/index.js …` when developing from `gitnexus/` with a local build.

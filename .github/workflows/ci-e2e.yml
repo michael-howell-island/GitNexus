@@ -34,12 +34,8 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: gitnexus-web
 
-      - name: Install backend dependencies
-        run: npm ci
-        working-directory: gitnexus
-
       - name: Build backend
-        run: npm run build
+        run: pnpm run build
         working-directory: gitnexus
 
       - name: Analyze repository (index for backend)
@@ -59,7 +55,7 @@ jobs:
         working-directory: gitnexus-web
 
       - name: Start Vite dev server
-        run: npm run dev &
+        run: pnpm run dev &
         working-directory: gitnexus-web
 
       - name: Wait for Vite dev server

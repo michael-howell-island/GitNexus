@@ -330,9 +330,9 @@ Or run locally:
 
 ```bash
 git clone https://github.com/abhigyanpatwari/gitnexus.git
-cd gitnexus/gitnexus-shared && npm install && npm run build
-cd ../gitnexus-web && npm install
-npm run dev
+cd gitnexus && pnpm install
+pnpm --filter gitnexus-shared run build
+pnpm --filter gitnexus-web run dev
 ```
 
 The web UI uses the same indexing pipeline as the CLI but runs entirely in WebAssembly (Tree-sitter WASM, LadybugDB WASM, in-browser embeddings). It's great for quick exploration but limited by browser memory for larger repos.

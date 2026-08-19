@@ -1,0 +1,34 @@
+packages:
+  - 'gitnexus'
+  - 'gitnexus-shared'
+  - 'gitnexus-web'
+
+allowBuilds:
+  '@ladybugdb/core': true
+  '@scarf/scarf': false
+  esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
+  tree-sitter: true
+  tree-sitter-c: true
+  tree-sitter-c-sharp: true
+  tree-sitter-cli: true
+  tree-sitter-cpp: true
+  tree-sitter-dart@https://codeload.github.com/UserNobody14/tree-sitter-dart/tar.gz/80e23c07b64494f7e21090bb3450223ef0b192f4: true
+  tree-sitter-go: true
+  tree-sitter-java: true
+  tree-sitter-javascript: true
+  tree-sitter-kotlin: true
+  tree-sitter-php: true
+  tree-sitter-python: true
+  tree-sitter-ruby: true
+  tree-sitter-rust: true
+  tree-sitter-swift: true
+  tree-sitter-typescript: true
+
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/sdk@0.118.0'
+
+overrides:
+  '@anthropic-ai/sdk': '^0.118.0'

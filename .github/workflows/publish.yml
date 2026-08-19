@@ -24,18 +24,18 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-          cache: npm
-          cache-dependency-path: gitnexus/package-lock.json
-      - name: Build gitnexus-shared
-        run: npm install && npm run build
-        working-directory: gitnexus-shared
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - run: npm ci
-        working-directory: gitnexus
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build gitnexus-shared
+        run: pnpm --filter gitnexus-shared run build
 
       - name: Verify version consistency
         shell: bash
@@ -54,15 +54,15 @@ jobs:
         working-directory: gitnexus
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
         working-directory: gitnexus
 
       - name: Dry-run publish
-        run: npm publish --dry-run
+        run: pnpm publish --dry-run --no-git-checks
         working-directory: gitnexus
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks
         working-directory: gitnexus
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
