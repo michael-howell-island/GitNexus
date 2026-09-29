@@ -202,6 +202,7 @@ export async function resolveWatchOptions(
     maxProcessTraceDepth: processDetection.maxProcessTraceDepth,
     maxEntryPointCandidates: processDetection.maxEntryPointCandidates,
     fetchWrappers: merged.fetchWrappers,
+    inversifyStitch: merged.inversifyStitch,
     skipAgentsMd: true,
     skipSkills: true,
     noStats: true,

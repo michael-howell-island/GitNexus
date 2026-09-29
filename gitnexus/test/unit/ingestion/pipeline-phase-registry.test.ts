@@ -184,3 +184,35 @@ describe('buildPhaseList — taintSummaries opt-in (#2084)', () => {
     expect(buildPhaseList({ pdg: true }).map((p) => p.name)).toContain('callSummaries');
   });
 });
+
+describe('buildPhaseList — inversifyStitch opt-in', () => {
+  it('off by default → list byte-identical to legacy', () => {
+    const previousRoot = process.env.APPS_REPO_ROOT;
+    delete process.env.APPS_REPO_ROOT;
+    try {
+      expect(buildPhaseList({}).map((p) => p.name)).not.toContain('inversifyStitch');
+    } finally {
+      if (previousRoot !== undefined) process.env.APPS_REPO_ROOT = previousRoot;
+    }
+  });
+
+  it('inversifyStitch:true → inserted after di, before communities and processes', () => {
+    const names = buildPhaseList({ inversifyStitch: true }).map((p) => p.name);
+    const at = (name: string) => names.indexOf(name);
+    expect(at('inversifyStitch')).toBe(at('di') + 1);
+    expect(at('inversifyStitch')).toBeLessThan(at('communities'));
+    expect(at('inversifyStitch')).toBeLessThan(at('processes'));
+  });
+
+  it('skipGraphPhases:true removes inversifyStitch even when enabled', () => {
+    expect(
+      buildPhaseList({ inversifyStitch: true, skipGraphPhases: true }).map((p) => p.name),
+    ).not.toContain('inversifyStitch');
+  });
+
+  it('skipDerivedGraphPhases:true keeps inversifyStitch so incremental runs still stitch', () => {
+    expect(
+      buildPhaseList({ inversifyStitch: true, skipDerivedGraphPhases: true }).map((p) => p.name),
+    ).toContain('inversifyStitch');
+  });
+});

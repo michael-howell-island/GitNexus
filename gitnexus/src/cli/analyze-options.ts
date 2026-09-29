@@ -147,6 +147,7 @@ export interface AnalyzeOptions {
    * outside the built-in convention still produces `route_map` consumers.
    */
   fetchWrappers?: string[];
+  inversifyStitch?: boolean;
   /**
    * Explicit local Spring Boot Actuator snapshot input (#2418). Accepts a JSON
    * bundle or a directory containing endpoint JSON files. Disabled by default.

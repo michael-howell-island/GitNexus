@@ -44,6 +44,8 @@ import {
   callSummariesPhase,
   mroPhase,
   diPhase,
+  inversifyStitchPhase,
+  isInversifyStitchEnabled,
   communitiesPhase,
   processesPhase,
   PhaseRegistry,
@@ -106,6 +108,7 @@ export interface PipelineOptions {
    * so a pdg-off warm cache is not reused on a `--pdg` run.
    */
   pdg?: boolean;
+  inversifyStitch?: boolean;
   /**
    * Per-function source-line cap for worker-side CFG construction.
    * `undefined` ⇒ the worker applies `DEFAULT_PDG_MAX_FUNCTION_LINES`; `0` ⇒ no
@@ -315,7 +318,7 @@ export interface PipelineOptions {
  *   scan → structure → [springConfig, markdown, cobol] → parse → [routes, tools, orm]
  *     → crossFile → scopeResolution → [springAutoConfiguration, springAop,
  *       springDestinations] → pruneLocalSymbols
- *     → mro → springAopInheritance → di → communities → processes
+ *     → mro → springAopInheritance → di → inversifyStitch → communities → processes
  *
  * To add a new phase: create a file in pipeline-phases/, export the phase
  * object, and `.register()` it at the appropriate position below. Opt-in
@@ -357,6 +360,9 @@ export function buildPhaseList(options?: PipelineOptions): PipelinePhase[] {
       .register(mroPhase, { enabledWhen: (o) => !o.skipGraphPhases })
       .register(springAopInheritancePhase, { enabledWhen: (o) => !o.skipGraphPhases })
       .register(diPhase, { enabledWhen: (o) => !o.skipGraphPhases })
+      .register(inversifyStitchPhase, {
+        enabledWhen: (o) => !o.skipGraphPhases && isInversifyStitchEnabled(o),
+      })
       .register(communitiesPhase, {
         enabledWhen: (o) => !o.skipGraphPhases && o.skipDerivedGraphPhases !== true,
       })

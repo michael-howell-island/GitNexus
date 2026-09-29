@@ -596,6 +596,7 @@ export interface AnalyzeOptions {
    * consumer scan unchanged.
    */
   fetchWrappers?: string[];
+  inversifyStitch?: boolean;
   /**
    * Explicit local Spring Boot Actuator snapshot input (#2418), forwarded to
    * the Spring enrichment phase. Undefined keeps static-only analysis.
@@ -2778,6 +2779,7 @@ async function runFullAnalysisInner(
           ? resolveNativeSafeStorageDir(storagePath, 'graph-csv')
           : undefined,
         fetchWrappers: options.fetchWrappers,
+        inversifyStitch: options.inversifyStitch,
         skipDerivedGraphPhases,
         springActuatorPath: options.springActuatorPath,
         asyncApiSpecPath: options.asyncApiSpecPath,

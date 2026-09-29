@@ -116,6 +116,7 @@ const KEY_SPECS: Record<string, KeySpec> = {
   // built-in convention set, is otherwise invisible to route_map consumers.
   // Listing it here adds it to the cross-file consumer scan.
   fetchWrappers: { target: 'fetchWrappers', kind: 'string-array' },
+  inversifyStitch: { target: 'inversifyStitch', kind: 'boolean' },
   // Explicit local Actuator snapshot input (#2418). The path itself is safe in
   // project config; payload contents are never copied into the graph wholesale.
   springActuator: { target: 'springActuator', kind: 'path' },

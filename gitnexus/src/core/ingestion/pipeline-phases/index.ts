@@ -37,6 +37,11 @@ export { taintSummariesPhase, type TaintSummariesOutput } from './taint-summarie
 export { callSummariesPhase, type CallSummariesOutput } from './call-summaries.js';
 export { mroPhase, type MROOutput } from './mro.js';
 export { diPhase, type DIOutput } from './di.js';
+export {
+  inversifyStitchPhase,
+  isInversifyStitchEnabled,
+  type InversifyStitchOutput,
+} from './inversify-stitch.js';
 export { communitiesPhase, type CommunitiesOutput } from './communities.js';
 export { processesPhase, type ProcessesOutput } from './processes.js';
 
