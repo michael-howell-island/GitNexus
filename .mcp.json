@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "gitnexus": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "gitnexus@latest", "mcp"]
+      "type": "sse",
+      "url": "http://localhost:3100/api/mcp-proxy/gitnexus/sse"
     }
   }
 }
