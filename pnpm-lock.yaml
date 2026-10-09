@@ -48,8 +48,8 @@ importers:
         specifier: ^3.0.0
         version: 3.8.1
       '@ladybugdb/core':
-        specifier: ^0.15.2
-        version: 0.15.4(supports-color@7.2.0)
+        specifier: ^0.19.1
+        version: 0.19.1(supports-color@7.2.0)
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@7.2.0)(zod@3.25.76)
@@ -1319,28 +1319,33 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@ladybugdb/core-darwin-arm64@0.15.4':
-    resolution: {integrity: sha512-iXO0r7fygmq7I8/5R0tm50slucn+wiZxYKsJ395dBXuxlxhCImpa6pATnOpKN3UfvuJXQE8Divb7kdh8l6TLpA==}
+  '@ladybugdb/core-darwin-arm64@0.19.1':
+    resolution: {integrity: sha512-VGQs1NThAygMsoOlxud05pqKA9xfUptl55iYkwvW45As5MSI7+M86WN0Pp0VdPEfw8vNQJehrlHR5LvVAuWc2Q==}
     cpu: [arm64]
     os: [darwin]
 
-  '@ladybugdb/core-linux-arm64@0.15.4':
-    resolution: {integrity: sha512-GSOe/EHFTw9G6LdtSLxseC4x0GxBTAp9wVIQC0mbHpq/C9ma0fL9dC2eO+S3gHdM8JnBdJ9OaSi4rKaZ1gf3EA==}
+  '@ladybugdb/core-darwin-x64@0.19.1':
+    resolution: {integrity: sha512-CGfM6ostxDS5jztxwjkXXtxrjMDgsFMRoyr5HZDCFw1+iXC1rIzmK/Y7RIw+KbQ49aPzSmkhBC447mFviBJxoA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@ladybugdb/core-linux-arm64@0.19.1':
+    resolution: {integrity: sha512-BZUQwlkvNXENc5GVyXdfRF0Dv9JX8XMlcdMMiB5GKrEhTCpajQ3D58woHPVvn0JEjw7Ms3tHo6kXUAMZKYXIVg==}
     cpu: [arm64]
     os: [linux]
 
-  '@ladybugdb/core-linux-x64@0.15.4':
-    resolution: {integrity: sha512-5STnU+96z7mRg6OiBRJlJ5pYud3MAdGA04cwEqmozOYh/hvMnLFJ08mHsJjrw6XHksNC1bGg43nS/KlS+9YiiA==}
+  '@ladybugdb/core-linux-x64@0.19.1':
+    resolution: {integrity: sha512-LDx+E1UHlmNXSb3F9QmvdBgZGfB3wI/DcrHzfOwXgT3BP8C4ScB2tZdpiYQiuPp8MiSZ9kuuGqos8A4tQKQu8Q==}
     cpu: [x64]
     os: [linux]
 
-  '@ladybugdb/core-win32-x64@0.15.4':
-    resolution: {integrity: sha512-dc5oeQASCfiG4XfUQqo/r/eUlLYroC+YeRG/rmBu/HnW9XgMha3IfuzmqPmjOIcF8pUXGxFtBDrwhmIdezmW8w==}
+  '@ladybugdb/core-win32-x64@0.19.1':
+    resolution: {integrity: sha512-2spst1g+Z050Fz/5z7Pc6Fuc5dVXLzekOuWW4lP+mEGCL3tkv3QWYxk37DiFy+O9fDFxiWK2f3aauab58/f9kQ==}
     cpu: [x64]
     os: [win32]
 
-  '@ladybugdb/core@0.15.4':
-    resolution: {integrity: sha512-K1LzodL1Wf03E0FA9qdNBnsljkdC7Y15BRZ9salNHkYaSJd/5e38rmvMslcLMtOfFT2T/jegtoiQU/KH0IOBLA==}
+  '@ladybugdb/core@0.19.1':
+    resolution: {integrity: sha512-8W2g6xUi4jm96fs4EayyMcsvEEtIb8vboZhw9/YG98881cIcmZjmqAN91XGUp4vb8NqoFr3Wp7wcu3dqJk0b7w==}
 
   '@langchain/anthropic@1.5.6':
     resolution: {integrity: sha512-k0L/x1RIGw1XhOuK/ML80YYmQGWRRzyvhTf09IgNusImBEBe10kzuvQaS/UgoyyV8zQnPhnkm9AuYAqn76BuWw==}
@@ -2048,6 +2053,9 @@ packages:
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
 
+  '@types/node@25.9.8':
+    resolution: {integrity: sha512-VfMrScDmMhUJQmd5hArdQnFvK0OIeD36uN2Va1FcpYaLB/BgkgM8Ulc50XtYISPMz7APJ30+N0T5EM0jlcdfRw==}
+
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
 
@@ -2338,6 +2346,10 @@ packages:
   ansi-styles@6.2.3:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
+
+  apache-arrow@21.2.0:
+    resolution: {integrity: sha512-Hxe6Agq26gQOM954qpzYSllJBPJl+e16U5CkfuMUhLrNba+5nKkttIVlflaovN6oaTratqMGAO8H5u/aNhmHWQ==}
+    hasBin: true
 
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
@@ -3011,6 +3023,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -3622,6 +3635,9 @@ packages:
 
   json-stringify-safe@5.0.1:
     resolution: {integrity: sha512-ZClg6AaYvamvYEE82d3Iyd3vSSIjQ+odgjaTzRuO3s7toCdFKczob2i0zCh7JE8kWn17yvAWhUVxvqGwUalsRA==}
+
+  json-with-bigint@3.5.12:
+    resolution: {integrity: sha512-uwbF/wSSuOgC7qqlq27Xp5B6a2MHVug3t0idZdTqu0JnlFvgJuH7ju+KAk/J06C7GfhoYy2gnb9wz2INqcne7w==}
 
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
@@ -5167,6 +5183,9 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
+  undici-types@7.24.6:
+    resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
+
   undici@5.28.4:
     resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
     engines: {node: '>=14.0'}
@@ -6176,27 +6195,32 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@ladybugdb/core-darwin-arm64@0.15.4':
+  '@ladybugdb/core-darwin-arm64@0.19.1':
     optional: true
 
-  '@ladybugdb/core-linux-arm64@0.15.4':
+  '@ladybugdb/core-darwin-x64@0.19.1':
     optional: true
 
-  '@ladybugdb/core-linux-x64@0.15.4':
+  '@ladybugdb/core-linux-arm64@0.19.1':
     optional: true
 
-  '@ladybugdb/core-win32-x64@0.15.4':
+  '@ladybugdb/core-linux-x64@0.19.1':
     optional: true
 
-  '@ladybugdb/core@0.15.4(supports-color@7.2.0)':
+  '@ladybugdb/core-win32-x64@0.19.1':
+    optional: true
+
+  '@ladybugdb/core@0.19.1(supports-color@7.2.0)':
     dependencies:
+      apache-arrow: 21.2.0
       cmake-js: 8.0.0(supports-color@7.2.0)
       node-addon-api: 6.1.0
     optionalDependencies:
-      '@ladybugdb/core-darwin-arm64': 0.15.4
-      '@ladybugdb/core-linux-arm64': 0.15.4
-      '@ladybugdb/core-linux-x64': 0.15.4
-      '@ladybugdb/core-win32-x64': 0.15.4
+      '@ladybugdb/core-darwin-arm64': 0.19.1
+      '@ladybugdb/core-darwin-x64': 0.19.1
+      '@ladybugdb/core-linux-arm64': 0.19.1
+      '@ladybugdb/core-linux-x64': 0.19.1
+      '@ladybugdb/core-win32-x64': 0.19.1
     transitivePeerDependencies:
       - supports-color
 
@@ -6835,6 +6859,10 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
+  '@types/node@25.9.8':
+    dependencies:
+      undici-types: 7.24.6
+
   '@types/prismjs@1.26.6': {}
 
   '@types/prop-types@15.7.15': {}
@@ -6863,7 +6891,7 @@ snapshots:
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 20.19.43
+      '@types/node': 24.13.3
 
   '@types/serve-static@1.15.10':
     dependencies:
@@ -7250,6 +7278,13 @@ snapshots:
   ansi-styles@5.2.0: {}
 
   ansi-styles@6.2.3: {}
+
+  apache-arrow@21.2.0:
+    dependencies:
+      '@types/node': 25.9.8
+      flatbuffers: 25.9.23
+      json-with-bigint: 3.5.12
+      tslib: 2.8.1
 
   argparse@2.0.1: {}
 
@@ -8699,6 +8734,8 @@ snapshots:
   json-stable-stringify-without-jsonify@1.0.1: {}
 
   json-stringify-safe@5.0.1: {}
+
+  json-with-bigint@3.5.12: {}
 
   json5@2.2.3: {}
 
@@ -10401,6 +10438,8 @@ snapshots:
   undici-types@6.21.0: {}
 
   undici-types@7.18.2: {}
+
+  undici-types@7.24.6: {}
 
   undici@5.28.4:
     dependencies:
